@@ -716,6 +716,7 @@ public abstract class DataStore {
 
 		//create a new claim instance (but don't save it, yet)
 		Claim newClaim = new Claim(
+				world,
 				new Coordinate(smallx, smallz),
 				new Coordinate(bigx, bigz),
 				ownerID,
@@ -1309,7 +1310,7 @@ public abstract class DataStore {
 				ArrayList<Claim> claimsInChunk = this.chunksToClaimsMap.get(chunkID);
 				if(claimsInChunk != null) {
 					for(Claim claim : claimsInChunk) {
-						if(claim.inDataStore && claim.world.equals(location.getWorld())) {
+						if(claim.inDataStore && location.getWorld().equals(claim.world)) {
 							claims.add(claim);
 						}
 					}

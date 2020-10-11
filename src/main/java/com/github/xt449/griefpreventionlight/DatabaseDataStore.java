@@ -296,7 +296,7 @@ public class DatabaseDataStore extends DataStore {
 				String managersString = results.getString("managers");
 				List<String> managerNames = Arrays.asList(managersString.split(";"));
 				managerNames = this.convertNameListToUUIDList(managerNames);
-				Claim claim = new Claim(Coordinate.fromLocation(lesserBoundaryCorner), Coordinate.fromLocation(greaterBoundaryCorner), ownerID, builderNames, containerNames, accessorNames, managerNames, inheritNothing, claimID);
+				Claim claim = new Claim(lesserBoundaryCorner.getWorld(), Coordinate.fromLocation(lesserBoundaryCorner), Coordinate.fromLocation(greaterBoundaryCorner), ownerID, builderNames, containerNames, accessorNames, managerNames, inheritNothing, claimID);
 
 				if(removeClaim) {
 					claimsToRemove.add(claim);

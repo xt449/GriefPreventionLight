@@ -43,7 +43,7 @@ public class Claim {
 	//Location greaterBoundaryCorner;
 
 	// TODO
-	World world;
+	final World world;
 	Coordinate lesserBoundaryCorner;
 	Coordinate greaterBoundaryCorner;
 
@@ -51,7 +51,7 @@ public class Claim {
 	public Date modifiedDate;
 
 	//id number.  unique to this claim, never changes.
-	Long id = null;
+	Long id;
 
 	//ownerID.  for admin claims, this is NULL
 	//use getOwnerName() to get a friendly name (will be "an administrator" for admin claims)
@@ -107,7 +107,7 @@ public class Claim {
 	}
 
 	//main constructor.  note that only creating a claim instance does nothing - a claim must be added to the data store to be effective
-	Claim(Coordinate lesserBoundaryCorner, Coordinate greaterBoundaryCorner, UUID ownerID, List<String> builderIDs, List<String> containerIDs, List<String> accessorIDs, List<String> managerIDs, boolean inheritNothing, Long id) {
+	Claim(World world, Coordinate lesserBoundaryCorner, Coordinate greaterBoundaryCorner, UUID ownerID, List<String> builderIDs, List<String> containerIDs, List<String> accessorIDs, List<String> managerIDs, boolean inheritNothing, Long id) {
 		//modification date
 		this.modifiedDate = Calendar.getInstance().getTime();
 
@@ -115,7 +115,7 @@ public class Claim {
 		this.id = id;
 
 		//store corners
-		// TODO
+		this.world = world;
 		this.lesserBoundaryCorner = lesserBoundaryCorner;
 		this.greaterBoundaryCorner = greaterBoundaryCorner;
 
@@ -144,14 +144,14 @@ public class Claim {
 		this.inheritNothing = inheritNothing;
 	}
 
-	Claim(Coordinate lesserBoundaryCorner, Coordinate greaterBoundaryCorner, UUID ownerID, List<String> builderIDs, List<String> containerIDs, List<String> accessorIDs, List<String> managerIDs, Long id) {
-		this(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builderIDs, containerIDs, accessorIDs, managerIDs, false, id);
+	Claim(World world, Coordinate lesserBoundaryCorner, Coordinate greaterBoundaryCorner, UUID ownerID, List<String> builderIDs, List<String> containerIDs, List<String> accessorIDs, List<String> managerIDs, Long id) {
+		this(world, lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builderIDs, containerIDs, accessorIDs, managerIDs, false, id);
 	}
 
 	//produces a copy of a claim.
 	public Claim(Claim claim) {
 		this.modifiedDate = claim.modifiedDate;
-		// TODO
+		this.world = claim.world;
 		this.lesserBoundaryCorner = claim.greaterBoundaryCorner;
 		this.greaterBoundaryCorner = claim.greaterBoundaryCorner;
 		this.id = claim.id;
@@ -190,6 +190,7 @@ public class Claim {
 	//distance check for claims, distance in this case is a band around the outside of the claim rather then euclidean distance
 	public boolean isNear(Location location, int howNear) {
 		Claim claim = new Claim(
+				location.getWorld(),
 				new Coordinate(this.lesserBoundaryCorner.getX() - howNear, this.lesserBoundaryCorner.getZ() - howNear),
 				new Coordinate(this.greaterBoundaryCorner.getX() + howNear, this.greaterBoundaryCorner.getZ() + howNear),
 				null,
