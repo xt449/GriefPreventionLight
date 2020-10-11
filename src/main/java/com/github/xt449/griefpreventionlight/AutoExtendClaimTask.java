@@ -25,7 +25,7 @@ class AutoExtendClaimTask implements Runnable {
 	public void run() {
 		int newY = this.getLowestBuiltY();
 		if(newY < this.claim.getLesserBoundaryCorner().getBlockY()) {
-			Bukkit.getScheduler().runTask(GriefPrevention.instance, new ExecuteExtendClaimTask(claim, newY));
+			Bukkit.getScheduler().runTask(GriefPreventionLight.instance, new ExecuteExtendClaimTask(claim, newY));
 		}
 	}
 
@@ -58,7 +58,7 @@ class AutoExtendClaimTask implements Runnable {
 				if(this.yTooSmall(y)) return y;
 			}
 		} catch(NoSuchMethodError e) {
-			GriefPrevention.instance.getLogger().severe("You are running an outdated build of Craftbukkit/Spigot/Paper. Please update.");
+			GriefPreventionLight.instance.getLogger().severe("You are running an outdated build of Craftbukkit/Spigot/Paper. Please update.");
 			for(ChunkSnapshot chunk : this.chunks) {
 				Biome biome = chunk.getBiome(0, 0);
 				Set<Material> playerBlockIDs = RestoreNatureProcessingTask.getPlayerBlocks(this.worldType, biome);
@@ -89,7 +89,7 @@ class AutoExtendClaimTask implements Runnable {
 	}
 
 	private boolean yTooSmall(int y) {
-		return y == 0 || y <= GriefPrevention.instance.config_claims_maxDepth;
+		return y == 0 || y <= GriefPreventionLight.instance.config_claims_maxDepth;
 	}
 
 	//runs in the main execution thread, where it can safely change claims and save those changes
@@ -104,7 +104,7 @@ class AutoExtendClaimTask implements Runnable {
 
 		@Override
 		public void run() {
-			GriefPrevention.instance.dataStore.extendClaim(claim, newY);
+			GriefPreventionLight.instance.dataStore.extendClaim(claim, newY);
 		}
 	}
 

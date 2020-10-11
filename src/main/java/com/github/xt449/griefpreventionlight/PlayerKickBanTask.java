@@ -56,7 +56,7 @@ class PlayerKickBanTask implements Runnable {
 
 		if(this.ban) {
 			//ban
-			GriefPrevention.banPlayer(this.player, this.reason, this.source);
+			GriefPreventionLight.banPlayer(this.player, this.reason, this.source);
 		} else if(this.player.isOnline()) {
 			this.player.kickPlayer(this.reason);
 		}

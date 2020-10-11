@@ -27,14 +27,14 @@ import org.bukkit.scheduler.BukkitRunnable;
 //solid blocks blocking them from exiting the frame
 //if that happens, we detect the problem and send them back through the portal.
 class CheckForPortalTrapTask extends BukkitRunnable {
-	GriefPrevention instance;
+	GriefPreventionLight instance;
 	//player who recently teleported via nether portal
 	private final Player player;
 
 	//where to send the player back to if he hasn't left the portal frame
 	private final Location returnLocation;
 
-	public CheckForPortalTrapTask(Player player, GriefPrevention plugin, Location locationToReturn) {
+	public CheckForPortalTrapTask(Player player, GriefPreventionLight plugin, Location locationToReturn) {
 		this.player = player;
 		this.instance = plugin;
 		this.returnLocation = locationToReturn;
@@ -44,7 +44,7 @@ class CheckForPortalTrapTask extends BukkitRunnable {
 	@Override
 	public void run() {
 		if(player.isOnline() && player.getPortalCooldown() >= 10 && player.hasMetadata("GP_PORTALRESCUE")) {
-			GriefPrevention.AddLogEntry("Rescued " + player.getName() + " from a nether portal.\nTeleported from " + player.getLocation().toString() + " to " + returnLocation.toString(), CustomLogEntryTypes.Debug);
+			GriefPreventionLight.AddLogEntry("Rescued " + player.getName() + " from a nether portal.\nTeleported from " + player.getLocation().toString() + " to " + returnLocation.toString(), CustomLogEntryTypes.Debug);
 			player.teleport(returnLocation);
 			player.removeMetadata("GP_PORTALRESCUE", instance);
 		}

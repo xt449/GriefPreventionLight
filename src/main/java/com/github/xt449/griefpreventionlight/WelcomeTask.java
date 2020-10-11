@@ -20,15 +20,15 @@ public class WelcomeTask implements Runnable {
 		if(!this.player.isOnline()) return;
 
 		//offer advice and a helpful link
-		GriefPrevention.sendMessage(player, TextMode.Instr, Messages.AvoidGriefClaimLand);
-		GriefPrevention.sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
+		GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.AvoidGriefClaimLand);
+		GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 
 		//give the player a reference book for later
-		if(GriefPrevention.instance.config_claims_supplyPlayerManual) {
+		if(GriefPreventionLight.instance.config_claims_supplyPlayerManual) {
 			ItemFactory factory = Bukkit.getItemFactory();
 			BookMeta meta = (BookMeta) factory.getItemMeta(Material.WRITTEN_BOOK);
 
-			DataStore datastore = GriefPrevention.instance.dataStore;
+			DataStore datastore = GriefPreventionLight.instance.dataStore;
 			meta.setAuthor(datastore.getMessage(Messages.BookAuthor));
 			meta.setTitle(datastore.getMessage(Messages.BookTitle));
 
@@ -38,11 +38,11 @@ public class WelcomeTask implements Runnable {
 
 			page1.append(URL).append("\n\n");
 			page1.append(intro).append("\n\n");
-			String editToolName = GriefPrevention.instance.config_claims_modificationTool.name().replace('_', ' ').toLowerCase();
-			String infoToolName = GriefPrevention.instance.config_claims_investigationTool.name().replace('_', ' ').toLowerCase();
+			String editToolName = GriefPreventionLight.instance.config_claims_modificationTool.name().replace('_', ' ').toLowerCase();
+			String infoToolName = GriefPreventionLight.instance.config_claims_investigationTool.name().replace('_', ' ').toLowerCase();
 			String configClaimTools = datastore.getMessage(Messages.BookTools, editToolName, infoToolName);
 			page1.append(configClaimTools);
-			if(GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius < 0) {
+			if(GriefPreventionLight.instance.config_claims_automaticClaimsForNewPlayersRadius < 0) {
 				page1.append(datastore.getMessage(Messages.BookDisabledChestClaims));
 			}
 

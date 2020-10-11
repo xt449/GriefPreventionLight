@@ -86,7 +86,7 @@ public class FlatFileDataStore extends DataStore {
 			} catch(Exception e) {
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
-				GriefPrevention.AddLogEntry(errors.toString(), CustomLogEntryTypes.Exception);
+				GriefPreventionLight.AddLogEntry(errors.toString(), CustomLogEntryTypes.Exception);
 			}
 
 			try {
@@ -130,7 +130,7 @@ public class FlatFileDataStore extends DataStore {
 				UUIDFetcher fetcher = new UUIDFetcher(namesToConvert);
 				fetcher.call();
 			} catch(Exception e) {
-				GriefPrevention.AddLogEntry("Failed to resolve a batch of names to UUIDs.  Details:" + e.getMessage());
+				GriefPreventionLight.AddLogEntry("Failed to resolve a batch of names to UUIDs.  Details:" + e.getMessage());
 				e.printStackTrace();
 			}
 
@@ -238,15 +238,15 @@ public class FlatFileDataStore extends DataStore {
 							try {
 								ownerID = UUIDFetcher.getUUIDOf(ownerName);
 							} catch(Exception ex) {
-								GriefPrevention.AddLogEntry("Couldn't resolve this name to a UUID: " + ownerName + ".");
-								GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+								GriefPreventionLight.AddLogEntry("Couldn't resolve this name to a UUID: " + ownerName + ".");
+								GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
 							}
 						} else {
 							try {
 								ownerID = UUID.fromString(ownerName);
 							} catch(Exception ex) {
-								GriefPrevention.AddLogEntry("Error - this is not a valid UUID: " + ownerName + ".");
-								GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+								GriefPreventionLight.AddLogEntry("Error - this is not a valid UUID: " + ownerName + ".");
+								GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
 							}
 						}
 
@@ -306,14 +306,14 @@ public class FlatFileDataStore extends DataStore {
 				//if there's any problem with the file's content, log an error message and skip it
 				catch(Exception e) {
 					if(e.getMessage() != null && e.getMessage().contains("World not found")) {
-						GriefPrevention.AddLogEntry("Failed to load a claim " + files[i].getName() + " because its world isn't loaded (yet?).  Please delete the claim file or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
+						GriefPreventionLight.AddLogEntry("Failed to load a claim " + files[i].getName() + " because its world isn't loaded (yet?).  Please delete the claim file or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
 						inStream.close();
 
 					} else {
 						StringWriter errors = new StringWriter();
 						e.printStackTrace(new PrintWriter(errors));
-						GriefPrevention.AddLogEntry("Failed to load claim " + files[i].getName() + ". This usually occurs when your server runs out of storage space, causing any file saves to corrupt. Fix or delete the file found in GriefPreventionData/ClaimData/" + files[i].getName(), CustomLogEntryTypes.Debug, false);
-						GriefPrevention.AddLogEntry(files[i].getName() + " " + errors.toString(), CustomLogEntryTypes.Exception);
+						GriefPreventionLight.AddLogEntry("Failed to load claim " + files[i].getName() + ". This usually occurs when your server runs out of storage space, causing any file saves to corrupt. Fix or delete the file found in GriefPreventionData/ClaimData/" + files[i].getName(), CustomLogEntryTypes.Debug, false);
+						GriefPreventionLight.AddLogEntry(files[i].getName() + " " + errors.toString(), CustomLogEntryTypes.Exception);
 					}
 				}
 
@@ -373,7 +373,7 @@ public class FlatFileDataStore extends DataStore {
 					} else {
 						StringWriter errors = new StringWriter();
 						e.printStackTrace(new PrintWriter(errors));
-						GriefPrevention.AddLogEntry(files[i].getName() + " " + errors.toString(), CustomLogEntryTypes.Exception);
+						GriefPreventionLight.AddLogEntry(files[i].getName() + " " + errors.toString(), CustomLogEntryTypes.Exception);
 					}
 				}
 			}
@@ -415,8 +415,8 @@ public class FlatFileDataStore extends DataStore {
 			try {
 				ownerID = UUID.fromString(ownerIdentifier);
 			} catch(Exception ex) {
-				GriefPrevention.AddLogEntry("Error - this is not a valid UUID: " + ownerIdentifier + ".");
-				GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+				GriefPreventionLight.AddLogEntry("Error - this is not a valid UUID: " + ownerIdentifier + ".");
+				GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
 			}
 		}
 
@@ -492,7 +492,7 @@ public class FlatFileDataStore extends DataStore {
 		catch(Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			GriefPrevention.AddLogEntry(claimID + " " + errors.toString(), CustomLogEntryTypes.Exception);
+			GriefPreventionLight.AddLogEntry(claimID + " " + errors.toString(), CustomLogEntryTypes.Exception);
 		}
 	}
 
@@ -504,7 +504,7 @@ public class FlatFileDataStore extends DataStore {
 		//remove from disk
 		File claimFile = new File(claimDataFolderPath + File.separator + claimID + ".yml");
 		if(claimFile.exists() && !claimFile.delete()) {
-			GriefPrevention.AddLogEntry("Error: Unable to delete claim file \"" + claimFile.getAbsolutePath() + "\".");
+			GriefPreventionLight.AddLogEntry("Error: Unable to delete claim file \"" + claimFile.getAbsolutePath() + "\".");
 		}
 	}
 
@@ -579,8 +579,8 @@ public class FlatFileDataStore extends DataStore {
 			if(needRetry) {
 				StringWriter errors = new StringWriter();
 				latestException.printStackTrace(new PrintWriter(errors));
-				GriefPrevention.AddLogEntry("Failed to load PlayerData for " + playerID + ". This usually occurs when your server runs out of storage space, causing any file saves to corrupt. Fix or delete the file in GriefPrevetionData/PlayerData/" + playerID, CustomLogEntryTypes.Debug, false);
-				GriefPrevention.AddLogEntry(playerID + " " + errors.toString(), CustomLogEntryTypes.Exception);
+				GriefPreventionLight.AddLogEntry("Failed to load PlayerData for " + playerID + ". This usually occurs when your server runs out of storage space, causing any file saves to corrupt. Fix or delete the file in GriefPrevetionData/PlayerData/" + playerID, CustomLogEntryTypes.Debug, false);
+				GriefPreventionLight.AddLogEntry(playerID + " " + errors.toString(), CustomLogEntryTypes.Exception);
 			}
 		}
 
@@ -619,7 +619,7 @@ public class FlatFileDataStore extends DataStore {
 
 		//if any problem, log it
 		catch(Exception e) {
-			GriefPrevention.AddLogEntry("GriefPrevention: Unexpected exception saving data for player \"" + playerID.toString() + "\": " + e.getMessage());
+			GriefPreventionLight.AddLogEntry("GriefPrevention: Unexpected exception saving data for player \"" + playerID.toString() + "\": " + e.getMessage());
 			e.printStackTrace();
 		}
 	}
@@ -642,7 +642,7 @@ public class FlatFileDataStore extends DataStore {
 
 		//if any problem, log it
 		catch(Exception e) {
-			GriefPrevention.AddLogEntry("Unexpected exception saving next claim ID: " + e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unexpected exception saving next claim ID: " + e.getMessage());
 			e.printStackTrace();
 		}
 
@@ -671,7 +671,7 @@ public class FlatFileDataStore extends DataStore {
 
 		//if any problem, log it
 		catch(Exception e) {
-			GriefPrevention.AddLogEntry("Unexpected exception saving data for group \"" + groupName + "\": " + e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unexpected exception saving data for group \"" + groupName + "\": " + e.getMessage());
 		}
 
 		try {
@@ -742,9 +742,9 @@ public class FlatFileDataStore extends DataStore {
 		claimsFolder.renameTo(claimsBackupFolder);
 		playersFolder.renameTo(playersBackupFolder);
 
-		GriefPrevention.AddLogEntry("Backed your file system data up to " + claimsBackupFolder.getName() + " and " + playersBackupFolder.getName() + ".");
-		GriefPrevention.AddLogEntry("If your migration encountered any problems, you can restore those data with a quick copy/paste.");
-		GriefPrevention.AddLogEntry("When you're satisfied that all your data have been safely migrated, consider deleting those folders.");
+		GriefPreventionLight.AddLogEntry("Backed your file system data up to " + claimsBackupFolder.getName() + " and " + playersBackupFolder.getName() + ".");
+		GriefPreventionLight.AddLogEntry("If your migration encountered any problems, you can restore those data with a quick copy/paste.");
+		GriefPreventionLight.AddLogEntry("When you're satisfied that all your data have been safely migrated, consider deleting those folders.");
 	}
 
 	@Override
@@ -795,7 +795,7 @@ public class FlatFileDataStore extends DataStore {
 
 		//if any problem, log it
 		catch(Exception e) {
-			GriefPrevention.AddLogEntry("Unexpected exception saving schema version: " + e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unexpected exception saving schema version: " + e.getMessage());
 		}
 
 		//close the file

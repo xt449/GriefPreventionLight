@@ -46,12 +46,12 @@ class FindUnusedClaimsTask implements Runnable {
 			return;
 		}
 
-		GriefPrevention.instance.getServer().getScheduler().runTaskAsynchronously(GriefPrevention.instance, new CleanupUnusedClaimPreTask(claimOwnerIterator.next()));
+		GriefPreventionLight.instance.getServer().getScheduler().runTaskAsynchronously(GriefPreventionLight.instance, new CleanupUnusedClaimPreTask(claimOwnerIterator.next()));
 	}
 
 	public void refreshUUIDs() {
 		// Fetch owner UUIDs from list of claims
-		claimOwnerUUIDs = GriefPrevention.instance.dataStore.claims.stream().map(claim -> claim.ownerID)
+		claimOwnerUUIDs = GriefPreventionLight.instance.dataStore.claims.stream().map(claim -> claim.ownerID)
 				.distinct().filter(Objects::nonNull).collect(Collectors.toList());
 
 		if(!claimOwnerUUIDs.isEmpty()) {
@@ -59,10 +59,10 @@ class FindUnusedClaimsTask implements Runnable {
 			Collections.shuffle(claimOwnerUUIDs);
 		}
 
-		GriefPrevention.AddLogEntry("The following UUIDs own a claim and will be checked for inactivity in the following order:", CustomLogEntryTypes.Debug, true);
+		GriefPreventionLight.AddLogEntry("The following UUIDs own a claim and will be checked for inactivity in the following order:", CustomLogEntryTypes.Debug, true);
 
 		for(UUID uuid : claimOwnerUUIDs)
-			GriefPrevention.AddLogEntry(uuid.toString(), CustomLogEntryTypes.Debug, true);
+			GriefPreventionLight.AddLogEntry(uuid.toString(), CustomLogEntryTypes.Debug, true);
 
 		claimOwnerIterator = claimOwnerUUIDs.iterator();
 	}

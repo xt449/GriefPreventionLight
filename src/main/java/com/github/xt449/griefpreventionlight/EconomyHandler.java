@@ -12,11 +12,11 @@ import org.bukkit.plugin.RegisteredServiceProvider;
  */
 public class EconomyHandler implements Listener {
 
-	private final GriefPrevention instance;
+	private final GriefPreventionLight instance;
 	private boolean setupDone = false;
 	private EconomyWrapper economy = null;
 
-	public EconomyHandler(GriefPrevention instance) {
+	public EconomyHandler(GriefPreventionLight instance) {
 		this.instance = instance;
 	}
 
@@ -99,7 +99,7 @@ public class EconomyHandler implements Listener {
 	private void finishSetup(boolean ready, String log) {
 		if(!ready) this.economy = null;
 
-		if(log != null && !setupDone) GriefPrevention.AddLogEntry(log);
+		if(log != null && !setupDone) GriefPreventionLight.AddLogEntry(log);
 
 		this.setupDone = true;
 	}

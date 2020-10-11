@@ -18,7 +18,7 @@ class WorldGuardWrapper {
 	private WorldGuardPlugin worldGuard = null;
 
 	public WorldGuardWrapper() throws ClassNotFoundException {
-		this.worldGuard = (WorldGuardPlugin) GriefPrevention.instance.getServer().getPluginManager().getPlugin("WorldGuard");
+		this.worldGuard = (WorldGuardPlugin) GriefPreventionLight.instance.getServer().getPluginManager().getPlugin("WorldGuard");
 	}
 
 	public boolean canBuild(Location lesserCorner, Location greaterCorner, Player creatingPlayer) {
@@ -48,7 +48,7 @@ class WorldGuardWrapper {
 
 			return true;
 		} catch(Throwable rock) {
-			GriefPrevention.AddLogEntry("WorldGuard was found but unable to hook into. It could be that you're " +
+			GriefPreventionLight.AddLogEntry("WorldGuard was found but unable to hook into. It could be that you're " +
 					"using an outdated version or WorldEdit broke their API... again." +
 					"Consider updating/downgrading/removing WorldGuard or disable WorldGuard integration in GP's config " +
 					"(CreationRequiresWorldGuardBuildPermission). If you're going to report this please be kind because " +

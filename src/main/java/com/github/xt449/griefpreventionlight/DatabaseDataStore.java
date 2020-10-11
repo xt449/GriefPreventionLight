@@ -65,14 +65,14 @@ public class DatabaseDataStore extends DataStore {
 			//load the java driver for mySQL
 			Class.forName("com.mysql.jdbc.Driver");
 		} catch(Exception e) {
-			GriefPrevention.AddLogEntry("ERROR: Unable to load Java's mySQL database driver.  Check to make sure you've installed it properly.");
+			GriefPreventionLight.AddLogEntry("ERROR: Unable to load Java's mySQL database driver.  Check to make sure you've installed it properly.");
 			throw e;
 		}
 
 		try {
 			this.refreshDataConnection();
 		} catch(Exception e2) {
-			GriefPrevention.AddLogEntry("ERROR: Unable to connect to database.  Check your config file settings.");
+			GriefPreventionLight.AddLogEntry("ERROR: Unable to connect to database.  Check your config file settings.");
 			throw e2;
 		}
 
@@ -100,8 +100,8 @@ public class DatabaseDataStore extends DataStore {
 				this.setSchemaVersion(latestSchemaVersion);
 			}
 		} catch(Exception e3) {
-			GriefPrevention.AddLogEntry("ERROR: Unable to create the necessary database table.  Details:");
-			GriefPrevention.AddLogEntry(e3.getMessage());
+			GriefPreventionLight.AddLogEntry("ERROR: Unable to create the necessary database table.  Details:");
+			GriefPreventionLight.AddLogEntry(e3.getMessage());
 			e3.printStackTrace();
 			throw e3;
 		}
@@ -176,7 +176,7 @@ public class DatabaseDataStore extends DataStore {
 					UUIDFetcher fetcher = new UUIDFetcher(namesToConvert);
 					fetcher.call();
 				} catch(Exception e) {
-					GriefPrevention.AddLogEntry("Failed to resolve a batch of names to UUIDs.  Details:" + e.getMessage());
+					GriefPreventionLight.AddLogEntry("Failed to resolve a batch of names to UUIDs.  Details:" + e.getMessage());
 					e.printStackTrace();
 				}
 
@@ -211,13 +211,13 @@ public class DatabaseDataStore extends DataStore {
 						updateStmnt.setString(2, name);
 						updateStmnt.executeUpdate();
 					} catch(SQLException e) {
-						GriefPrevention.AddLogEntry("Unable to convert player data for " + name + ".  Skipping.");
-						GriefPrevention.AddLogEntry(e.getMessage());
+						GriefPreventionLight.AddLogEntry("Unable to convert player data for " + name + ".  Skipping.");
+						GriefPreventionLight.AddLogEntry(e.getMessage());
 					}
 				}
 			} catch(SQLException e) {
-				GriefPrevention.AddLogEntry("Unable to convert player data.  Details:");
-				GriefPrevention.AddLogEntry(e.getMessage());
+				GriefPreventionLight.AddLogEntry("Unable to convert player data.  Details:");
+				GriefPreventionLight.AddLogEntry(e.getMessage());
 				e.printStackTrace();
 			}
 		}
@@ -254,7 +254,7 @@ public class DatabaseDataStore extends DataStore {
 					greaterBoundaryCorner = this.locationFromString(greaterCornerString, validWorlds);
 				} catch(Exception e) {
 					if(e.getMessage() != null && e.getMessage().contains("World not found")) {
-						GriefPrevention.AddLogEntry("Failed to load a claim (ID:" + claimID.toString() + ") because its world isn't loaded (yet?).  Please delete the claim or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
+						GriefPreventionLight.AddLogEntry("Failed to load a claim (ID:" + claimID.toString() + ") because its world isn't loaded (yet?).  Please delete the claim or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
 						continue;
 					} else {
 						throw e;
@@ -269,15 +269,15 @@ public class DatabaseDataStore extends DataStore {
 					try {
 						ownerID = UUIDFetcher.getUUIDOf(ownerName);
 					} catch(Exception ex) {
-						GriefPrevention.AddLogEntry("This owner name did not convert to a UUID: " + ownerName + ".");
-						GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+						GriefPreventionLight.AddLogEntry("This owner name did not convert to a UUID: " + ownerName + ".");
+						GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
 					}
 				} else {
 					try {
 						ownerID = UUID.fromString(ownerName);
 					} catch(Exception ex) {
-						GriefPrevention.AddLogEntry("This owner entry is not a UUID: " + ownerName + ".");
-						GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+						GriefPreventionLight.AddLogEntry("This owner entry is not a UUID: " + ownerName + ".");
+						GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
 					}
 				}
 
@@ -308,7 +308,7 @@ public class DatabaseDataStore extends DataStore {
 					subdivisionsToLoad.add(claim);
 				}
 			} catch(SQLException e) {
-				GriefPrevention.AddLogEntry("Unable to load a claim.  Details: " + e.getMessage() + " ... " + results.toString());
+				GriefPreventionLight.AddLogEntry("Unable to load a claim.  Details: " + e.getMessage() + " ... " + results.toString());
 				e.printStackTrace();
 			}
 		}
@@ -320,7 +320,7 @@ public class DatabaseDataStore extends DataStore {
 
 			if(topLevelClaim == null) {
 				claimsToRemove.add(childClaim);
-				GriefPrevention.AddLogEntry("Removing orphaned claim subdivision: " + childClaim.getLesserBoundaryCorner().toString());
+				GriefPreventionLight.AddLogEntry("Removing orphaned claim subdivision: " + childClaim.getLesserBoundaryCorner().toString());
 				continue;
 			}
 
@@ -355,8 +355,8 @@ public class DatabaseDataStore extends DataStore {
 			//write claim data to the database
 			this.writeClaimData(claim);
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to save data for claim at " + this.locationToString(claim.lesserBoundaryCorner) + ".  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to save data for claim at " + this.locationToString(claim.lesserBoundaryCorner) + ".  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}
 
@@ -395,8 +395,8 @@ public class DatabaseDataStore extends DataStore {
 			insertStmt.setLong(10, parentId);
 			insertStmt.executeUpdate();
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to save data for claim at " + this.locationToString(claim.lesserBoundaryCorner) + ".  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to save data for claim at " + this.locationToString(claim.lesserBoundaryCorner) + ".  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}
 
@@ -407,8 +407,8 @@ public class DatabaseDataStore extends DataStore {
 			deleteStmnt.setLong(1, claim.id);
 			deleteStmnt.executeUpdate();
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to delete data for claim " + claim.id + ".  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to delete data for claim " + claim.id + ".  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 			e.printStackTrace();
 		}
 	}
@@ -430,7 +430,7 @@ public class DatabaseDataStore extends DataStore {
 		} catch(SQLException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			GriefPrevention.AddLogEntry(playerID + " " + errors.toString(), CustomLogEntryTypes.Exception);
+			GriefPreventionLight.AddLogEntry(playerID + " " + errors.toString(), CustomLogEntryTypes.Exception);
 		}
 
 		return playerData;
@@ -463,7 +463,7 @@ public class DatabaseDataStore extends DataStore {
 		} catch(SQLException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			GriefPrevention.AddLogEntry(playerID + " " + errors.toString(), CustomLogEntryTypes.Exception);
+			GriefPreventionLight.AddLogEntry(playerID + " " + errors.toString(), CustomLogEntryTypes.Exception);
 		}
 	}
 
@@ -482,8 +482,8 @@ public class DatabaseDataStore extends DataStore {
 			insertStmnt.setLong(1, nextID);
 			insertStmnt.executeUpdate();
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to set next claim ID to " + nextID + ".  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to set next claim ID to " + nextID + ".  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}
 
@@ -504,8 +504,8 @@ public class DatabaseDataStore extends DataStore {
 			insertStmnt.setInt(4, currentValue);
 			insertStmnt.executeUpdate();
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to save data for group " + groupName + ".  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to save data for group " + groupName + ".  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}
 
@@ -556,8 +556,8 @@ public class DatabaseDataStore extends DataStore {
 				return results.getInt("version");
 			}
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to retrieve schema version from database.  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to retrieve schema version from database.  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 			e.printStackTrace();
 			return 0;
 		}
@@ -572,8 +572,8 @@ public class DatabaseDataStore extends DataStore {
 			insertStmnt.setInt(1, versionToSet);
 			insertStmnt.executeUpdate();
 		} catch(SQLException e) {
-			GriefPrevention.AddLogEntry("Unable to set next schema version to " + versionToSet + ".  Details:");
-			GriefPrevention.AddLogEntry(e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unable to set next schema version to " + versionToSet + ".  Details:");
+			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}
 

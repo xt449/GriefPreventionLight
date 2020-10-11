@@ -106,14 +106,14 @@ public abstract class DataStore {
 
 	//initialization!
 	void initialize() throws Exception {
-		GriefPrevention.AddLogEntry(this.claims.size() + " total claims loaded.");
+		GriefPreventionLight.AddLogEntry(this.claims.size() + " total claims loaded.");
 
 		//RoboMWM: ensure the nextClaimID is greater than any other claim ID. If not, data corruption occurred (out of storage space, usually).
 		for(Claim claim : this.claims) {
 			if(claim.id >= nextClaimID) {
-				GriefPrevention.instance.getLogger().severe("nextClaimID was lesser or equal to an already-existing claim ID!\n" +
+				GriefPreventionLight.instance.getLogger().severe("nextClaimID was lesser or equal to an already-existing claim ID!\n" +
 						"This usually happens if you ran out of storage space.");
-				GriefPrevention.AddLogEntry("Changing nextClaimID from " + nextClaimID + " to " + claim.id, CustomLogEntryTypes.Debug, false);
+				GriefPreventionLight.AddLogEntry("Changing nextClaimID from " + nextClaimID + " to " + claim.id, CustomLogEntryTypes.Debug, false);
 				nextClaimID = claim.id + 1;
 			}
 		}
@@ -126,11 +126,11 @@ public abstract class DataStore {
 
 		//load up all the messages from messages.yml
 		this.loadMessages();
-		GriefPrevention.AddLogEntry("Customizable messages loaded.");
+		GriefPreventionLight.AddLogEntry("Customizable messages loaded.");
 
 		//if converting up from an earlier schema version, write all claims back to storage using the latest format
 		if(this.getSchemaVersion() < latestSchemaVersion) {
-			GriefPrevention.AddLogEntry("Please wait.  Updating data format.");
+			GriefPreventionLight.AddLogEntry("Please wait.  Updating data format.");
 
 			for(Claim claim : this.claims) {
 				this.saveClaim(claim);
@@ -146,7 +146,7 @@ public abstract class DataStore {
 				UUIDFetcher.correctedNames.clear();
 			}
 
-			GriefPrevention.AddLogEntry("Update finished.");
+			GriefPreventionLight.AddLogEntry("Update finished.");
 		}
 
 		//load list of soft mutes
@@ -158,7 +158,7 @@ public abstract class DataStore {
 		//try to hook into world guard
 		try {
 			this.worldGuard = new WorldGuardWrapper();
-			GriefPrevention.AddLogEntry("Successfully hooked into WorldGuard.");
+			GriefPreventionLight.AddLogEntry("Successfully hooked into WorldGuard.");
 		}
 		//if failed, world guard compat features will just be disabled.
 		catch(ClassNotFoundException exception) {
@@ -183,7 +183,7 @@ public abstract class DataStore {
 						playerID = UUID.fromString(nextID);
 					} catch(Exception e) {
 						playerID = null;
-						GriefPrevention.AddLogEntry("Failed to parse soft mute entry as a UUID: " + nextID);
+						GriefPreventionLight.AddLogEntry("Failed to parse soft mute entry as a UUID: " + nextID);
 					}
 
 					//push it into the map
@@ -195,7 +195,7 @@ public abstract class DataStore {
 					nextID = inStream.readLine();
 				}
 			} catch(Exception e) {
-				GriefPrevention.AddLogEntry("Failed to read from the soft mute data file: " + e.toString());
+				GriefPreventionLight.AddLogEntry("Failed to read from the soft mute data file: " + e.toString());
 				e.printStackTrace();
 			}
 
@@ -220,7 +220,7 @@ public abstract class DataStore {
 
 			return Files.readLines(bannedWordsFile, StandardCharsets.UTF_8);
 		} catch(Exception e) {
-			GriefPrevention.AddLogEntry("Failed to read from the banned words data file: " + e.toString());
+			GriefPreventionLight.AddLogEntry("Failed to read from the banned words data file: " + e.toString());
 			e.printStackTrace();
 			return new ArrayList<>();
 		}
@@ -261,7 +261,7 @@ public abstract class DataStore {
 
 		//if any problem, log it
 		catch(Exception e) {
-			GriefPrevention.AddLogEntry("Unexpected exception saving soft mute data: " + e.getMessage());
+			GriefPreventionLight.AddLogEntry("Unexpected exception saving soft mute data: " + e.getMessage());
 			e.printStackTrace();
 		}
 
@@ -281,7 +281,7 @@ public abstract class DataStore {
 	//Bukkit doesn't allow for checking permissions of an offline player.
 	//this will return 0 when he's offline, and the correct number when online.
 	synchronized public int getGroupBonusBlocks(UUID playerID) {
-		Player player = GriefPrevention.instance.getServer().getPlayer(playerID);
+		Player player = GriefPreventionLight.instance.getServer().getPlayer(playerID);
 
 		if(player == null) return 0;
 
@@ -704,8 +704,8 @@ public abstract class DataStore {
 
 		int smallx, bigx, smally, bigy, smallz, bigz;
 
-		if(y1 < GriefPrevention.instance.config_claims_maxDepth) y1 = GriefPrevention.instance.config_claims_maxDepth;
-		if(y2 < GriefPrevention.instance.config_claims_maxDepth) y2 = GriefPrevention.instance.config_claims_maxDepth;
+		if(y1 < GriefPreventionLight.instance.config_claims_maxDepth) y1 = GriefPreventionLight.instance.config_claims_maxDepth;
+		if(y2 < GriefPreventionLight.instance.config_claims_maxDepth) y2 = GriefPreventionLight.instance.config_claims_maxDepth;
 
 		//determine small versus big inputs
 		if(x1 < x2) {
@@ -743,7 +743,7 @@ public abstract class DataStore {
 		}
 
 		//creative mode claims always go to bedrock
-		if(GriefPrevention.instance.config_claims_worldModes.get(world) == ClaimsMode.Creative) {
+		if(GriefPreventionLight.instance.config_claims_worldModes.get(world) == ClaimsMode.Creative) {
 			smally = 0;
 		}
 
@@ -779,7 +779,7 @@ public abstract class DataStore {
 		}
 
 		//if worldguard is installed, also prevent claims from overlapping any worldguard regions
-		if(GriefPrevention.instance.config_claims_respectWorldGuard && this.worldGuard != null && creatingPlayer != null) {
+		if(GriefPreventionLight.instance.config_claims_respectWorldGuard && this.worldGuard != null && creatingPlayer != null) {
 			if(!this.worldGuard.canBuild(newClaim.lesserBoundaryCorner, newClaim.greaterBoundaryCorner, creatingPlayer)) {
 				result.succeeded = false;
 				result.claim = null;
@@ -852,7 +852,7 @@ public abstract class DataStore {
 
 			//if any problem, log it
 			catch(Exception e) {
-				GriefPrevention.AddLogEntry("GriefPrevention: Unexpected exception saving data for player \"" + playerID.toString() + "\": " + e.getMessage());
+				GriefPreventionLight.AddLogEntry("GriefPrevention: Unexpected exception saving data for player \"" + playerID.toString() + "\": " + e.getMessage());
 				e.printStackTrace();
 			}
 		}
@@ -863,8 +863,8 @@ public abstract class DataStore {
 	//extends a claim to a new depth
 	//respects the max depth config variable
 	synchronized public void extendClaim(Claim claim, int newDepth) {
-		if(newDepth < GriefPrevention.instance.config_claims_maxDepth)
-			newDepth = GriefPrevention.instance.config_claims_maxDepth;
+		if(newDepth < GriefPreventionLight.instance.config_claims_maxDepth)
+			newDepth = GriefPreventionLight.instance.config_claims_maxDepth;
 
 		if(claim.parent != null) claim = claim.parent;
 
@@ -902,8 +902,8 @@ public abstract class DataStore {
 			this.deleteClaim(claim, releasePets);
 
 			//if in a creative mode world, delete the claim
-			if(GriefPrevention.instance.creativeRulesApply(claim.getLesserBoundaryCorner())) {
-				GriefPrevention.instance.restoreClaim(claim, 0);
+			if(GriefPreventionLight.instance.creativeRulesApply(claim.getLesserBoundaryCorner())) {
+				GriefPreventionLight.instance.restoreClaim(claim, 0);
 			}
 		}
 	}
@@ -939,14 +939,14 @@ public abstract class DataStore {
 			boolean smaller = newWidth < playerData.claimResizing.getWidth() || newHeight < playerData.claimResizing.getHeight();
 
 			if(!player.hasPermission("griefprevention.adminclaims") && !playerData.claimResizing.isAdminClaim() && smaller) {
-				if(newWidth < GriefPrevention.instance.config_claims_minWidth || newHeight < GriefPrevention.instance.config_claims_minWidth) {
-					GriefPrevention.sendMessage(player, TextMode.Err, Messages.ResizeClaimTooNarrow, String.valueOf(GriefPrevention.instance.config_claims_minWidth));
+				if(newWidth < GriefPreventionLight.instance.config_claims_minWidth || newHeight < GriefPreventionLight.instance.config_claims_minWidth) {
+					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeClaimTooNarrow, String.valueOf(GriefPreventionLight.instance.config_claims_minWidth));
 					return;
 				}
 
 				int newArea = newWidth * newHeight;
-				if(newArea < GriefPrevention.instance.config_claims_minArea) {
-					GriefPrevention.sendMessage(player, TextMode.Err, Messages.ResizeClaimInsufficientArea, String.valueOf(GriefPrevention.instance.config_claims_minArea));
+				if(newArea < GriefPreventionLight.instance.config_claims_minArea) {
+					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeClaimInsufficientArea, String.valueOf(GriefPreventionLight.instance.config_claims_minArea));
 					return;
 				}
 			}
@@ -957,7 +957,7 @@ public abstract class DataStore {
 				int blocksRemainingAfter = playerData.getRemainingClaimBlocks() + playerData.claimResizing.getArea() - newArea;
 
 				if(blocksRemainingAfter < 0) {
-					GriefPrevention.sendMessage(player, TextMode.Err, Messages.ResizeNeedMoreBlocks, String.valueOf(Math.abs(blocksRemainingAfter)));
+					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeNeedMoreBlocks, String.valueOf(Math.abs(blocksRemainingAfter)));
 					this.tryAdvertiseAdminAlternatives(player);
 					return;
 				}
@@ -991,7 +991,7 @@ public abstract class DataStore {
 		}
 
 		//ask the datastore to try and resize the claim, this checks for conflicts with other claims
-		CreateClaimResult result = GriefPrevention.instance.dataStore.resizeClaim(playerData.claimResizing, newx1, newx2, newy1, newy2, newz1, newz2, player);
+		CreateClaimResult result = GriefPreventionLight.instance.dataStore.resizeClaim(playerData.claimResizing, newx1, newx2, newy1, newy2, newz1, newz2, player);
 
 		if(result.succeeded) {
 			//decide how many claim blocks are available for more resizing
@@ -1006,7 +1006,7 @@ public abstract class DataStore {
 				} else {
 					PlayerData ownerData = this.getPlayerData(ownerID);
 					claimBlocksRemaining = ownerData.getRemainingClaimBlocks();
-					OfflinePlayer owner = GriefPrevention.instance.getServer().getOfflinePlayer(ownerID);
+					OfflinePlayer owner = GriefPreventionLight.instance.getServer().getOfflinePlayer(ownerID);
 					if(!owner.isOnline()) {
 						this.clearCachedPlayerData(ownerID);
 					}
@@ -1014,26 +1014,26 @@ public abstract class DataStore {
 			}
 
 			//inform about success, visualize, communicate remaining blocks available
-			GriefPrevention.sendMessage(player, TextMode.Success, Messages.ClaimResizeSuccess, String.valueOf(claimBlocksRemaining));
+			GriefPreventionLight.sendMessage(player, TextMode.Success, Messages.ClaimResizeSuccess, String.valueOf(claimBlocksRemaining));
 			Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
 			Visualization.Apply(player, visualization);
 
 			//if resizing someone else's claim, make a log entry
 			if(!player.getUniqueId().equals(playerData.claimResizing.ownerID) && playerData.claimResizing.parent == null) {
-				GriefPrevention.AddLogEntry(player.getName() + " resized " + playerData.claimResizing.getOwnerName() + "'s claim at " + GriefPrevention.getfriendlyLocationString(playerData.claimResizing.lesserBoundaryCorner) + ".");
+				GriefPreventionLight.AddLogEntry(player.getName() + " resized " + playerData.claimResizing.getOwnerName() + "'s claim at " + GriefPreventionLight.getfriendlyLocationString(playerData.claimResizing.lesserBoundaryCorner) + ".");
 			}
 
 			//if increased to a sufficiently large size and no subdivisions yet, send subdivision instructions
 			if(oldClaim.getArea() < 1000 && result.claim.getArea() >= 1000 && result.claim.children.size() == 0 && !player.hasPermission("griefprevention.adminclaims")) {
-				GriefPrevention.sendMessage(player, TextMode.Info, Messages.BecomeMayor, 200L);
-				GriefPrevention.sendMessage(player, TextMode.Instr, Messages.SubdivisionVideo2, 201L, DataStore.SUBDIVISION_VIDEO_URL);
+				GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.BecomeMayor, 200L);
+				GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.SubdivisionVideo2, 201L, DataStore.SUBDIVISION_VIDEO_URL);
 			}
 
 			//if in a creative mode world and shrinking an existing claim, restore any unclaimed area
-			if(smaller && GriefPrevention.instance.creativeRulesApply(oldClaim.getLesserBoundaryCorner())) {
-				GriefPrevention.sendMessage(player, TextMode.Warn, Messages.UnclaimCleanupWarning);
-				GriefPrevention.instance.restoreClaim(oldClaim, 20L * 60 * 2);  //2 minutes
-				GriefPrevention.AddLogEntry(player.getName() + " shrank a claim @ " + GriefPrevention.getfriendlyLocationString(playerData.claimResizing.getLesserBoundaryCorner()));
+			if(smaller && GriefPreventionLight.instance.creativeRulesApply(oldClaim.getLesserBoundaryCorner())) {
+				GriefPreventionLight.sendMessage(player, TextMode.Warn, Messages.UnclaimCleanupWarning);
+				GriefPreventionLight.instance.restoreClaim(oldClaim, 20L * 60 * 2);  //2 minutes
+				GriefPreventionLight.AddLogEntry(player.getName() + " shrank a claim @ " + GriefPreventionLight.getfriendlyLocationString(playerData.claimResizing.getLesserBoundaryCorner()));
 			}
 
 			//clean up
@@ -1042,13 +1042,13 @@ public abstract class DataStore {
 		} else {
 			if(result.claim != null) {
 				//inform player
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.ResizeFailOverlap);
+				GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeFailOverlap);
 
 				//show the player the conflicting claim
 				Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.ErrorClaim, player.getLocation());
 				Visualization.Apply(player, visualization);
 			} else {
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.ResizeFailOverlapRegion);
+				GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeFailOverlapRegion);
 			}
 		}
 	}
@@ -1056,11 +1056,11 @@ public abstract class DataStore {
 	//educates a player about /adminclaims and /acb, if he can use them
 	void tryAdvertiseAdminAlternatives(Player player) {
 		if(player.hasPermission("griefprevention.adminclaims") && player.hasPermission("griefprevention.adjustclaimblocks")) {
-			GriefPrevention.sendMessage(player, TextMode.Info, Messages.AdvertiseACandACB);
+			GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.AdvertiseACandACB);
 		} else if(player.hasPermission("griefprevention.adminclaims")) {
-			GriefPrevention.sendMessage(player, TextMode.Info, Messages.AdvertiseAdminClaims);
+			GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.AdvertiseAdminClaims);
 		} else if(player.hasPermission("griefprevention.adjustclaimblocks")) {
-			GriefPrevention.sendMessage(player, TextMode.Info, Messages.AdvertiseACB);
+			GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.AdvertiseACB);
 		}
 	}
 
@@ -1284,7 +1284,7 @@ public abstract class DataStore {
 
 			//if default is missing, log an error and use some fake data for now so that the plugin can run
 			if(messageData == null) {
-				GriefPrevention.AddLogEntry("Missing message for " + messageID.name() + ".  Please contact the developer.");
+				GriefPreventionLight.AddLogEntry("Missing message for " + messageID.name() + ".  Please contact the developer.");
 				messageData = new CustomizableMessage(messageID, "Missing message!  ID: " + messageID.name() + ".  Please contact a server admin.", null);
 			}
 
@@ -1308,7 +1308,7 @@ public abstract class DataStore {
 			config.options().header("Use a YAML editor like NotepadPlusPlus to edit this file.  \nAfter editing, back up your changes before reloading the server in case you made a syntax error.  \nUse dollar signs ($) for formatting codes, which are documented here: http://minecraft.gamepedia.com/Formatting_codes");
 			config.save(DataStore.messagesFilePath);
 		} catch(IOException exception) {
-			GriefPrevention.AddLogEntry("Unable to write to the configuration file at \"" + DataStore.messagesFilePath + "\"");
+			GriefPreventionLight.AddLogEntry("Unable to write to the configuration file at \"" + DataStore.messagesFilePath + "\"");
 		}
 
 		defaults.clear();

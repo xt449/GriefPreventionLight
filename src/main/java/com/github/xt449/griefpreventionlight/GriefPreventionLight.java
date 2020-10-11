@@ -49,9 +49,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class GriefPrevention extends JavaPlugin {
+public class GriefPreventionLight extends JavaPlugin {
 	//for convenience, a reference to the instance of this plugin
-	public static GriefPrevention instance;
+	public static GriefPreventionLight instance;
 
 	//for logging to the console and log file
 	private static Logger log;
@@ -203,8 +203,8 @@ public class GriefPrevention extends JavaPlugin {
 
 	//adds a server log entry
 	public static synchronized void AddLogEntry(String entry, CustomLogEntryTypes customLogType, boolean excludeFromServerLogs) {
-		if(customLogType != null && GriefPrevention.instance.customLogger != null) {
-			GriefPrevention.instance.customLogger.AddEntry(entry, customLogType);
+		if(customLogType != null && GriefPreventionLight.instance.customLogger != null) {
+			GriefPreventionLight.instance.customLogger.AddEntry(entry, customLogType);
 		}
 		if(!excludeFromServerLogs) log.info(entry);
 	}
@@ -234,16 +234,16 @@ public class GriefPrevention extends JavaPlugin {
 				DatabaseDataStore databaseStore = new DatabaseDataStore(this.databaseUrl, this.databaseUserName, this.databasePassword);
 
 				if(FlatFileDataStore.hasData()) {
-					GriefPrevention.AddLogEntry("There appears to be some data on the hard drive.  Migrating those data to the database...");
+					GriefPreventionLight.AddLogEntry("There appears to be some data on the hard drive.  Migrating those data to the database...");
 					FlatFileDataStore flatFileStore = new FlatFileDataStore();
 					this.dataStore = flatFileStore;
 					flatFileStore.migrateData(databaseStore);
-					GriefPrevention.AddLogEntry("Data migration process complete.");
+					GriefPreventionLight.AddLogEntry("Data migration process complete.");
 				}
 
 				this.dataStore = databaseStore;
 			} catch(Exception e) {
-				GriefPrevention.AddLogEntry("Because there was a problem with the database, GriefPrevention will not function properly.  Either update the database config settings resolve the issue, or delete those lines from your config.yml so that GriefPrevention can use the file system to store data.");
+				GriefPreventionLight.AddLogEntry("Because there was a problem with the database, GriefPrevention will not function properly.  Either update the database config settings resolve the issue, or delete those lines from your config.yml so that GriefPrevention can use the file system to store data.");
 				e.printStackTrace();
 				this.getServer().getPluginManager().disablePlugin(this);
 				return;
@@ -266,8 +266,8 @@ public class GriefPrevention extends JavaPlugin {
 			try {
 				this.dataStore = new FlatFileDataStore();
 			} catch(Exception e) {
-				GriefPrevention.AddLogEntry("Unable to initialize the file system data store.  Details:");
-				GriefPrevention.AddLogEntry(e.getMessage());
+				GriefPreventionLight.AddLogEntry("Unable to initialize the file system data store.  Details:");
+				GriefPreventionLight.AddLogEntry(e.getMessage());
 				e.printStackTrace();
 			}
 		}
@@ -284,7 +284,7 @@ public class GriefPrevention extends JavaPlugin {
 
 		//start the recurring cleanup event for entities in creative worlds
 		EntityCleanupTask task = new EntityCleanupTask(0);
-		this.getServer().getScheduler().scheduleSyncDelayedTask(GriefPrevention.instance, task, 20L * 60 * 2);
+		this.getServer().getScheduler().scheduleSyncDelayedTask(GriefPreventionLight.instance, task, 20L * 60 * 2);
 
 		//start recurring cleanup scan for unused claims belonging to inactive players
 		FindUnusedClaimsTask task2 = new FindUnusedClaimsTask();
@@ -317,7 +317,7 @@ public class GriefPrevention extends JavaPlugin {
 
 		//load ignore lists for any already-online players
 		@SuppressWarnings("unchecked")
-		Collection<Player> players = (Collection<Player>) GriefPrevention.instance.getServer().getOnlinePlayers();
+		Collection<Player> players = (Collection<Player>) GriefPreventionLight.instance.getServer().getOnlinePlayers();
 		for(Player player : players) {
 			new IgnoreLoaderThread(player.getUniqueId(), this.dataStore.getPlayerData(player.getUniqueId()).ignoredPlayers).start();
 		}
@@ -371,7 +371,7 @@ public class GriefPrevention extends JavaPlugin {
 					if(claimsMode == ClaimsMode.Creative) this.config_creativeWorldsExist = true;
 					continue;
 				} else {
-					GriefPrevention.AddLogEntry("Error: Invalid claim mode \"" + configSetting + "\".  Options are Survival, Creative, and Disabled.");
+					GriefPreventionLight.AddLogEntry("Error: Invalid claim mode \"" + configSetting + "\".  Options are Survival, Creative, and Disabled.");
 					this.config_claims_worldModes.put(world, ClaimsMode.Creative);
 					this.config_creativeWorldsExist = true;
 				}
@@ -527,7 +527,7 @@ public class GriefPrevention extends JavaPlugin {
 		//validate investigation tool
 		this.config_claims_investigationTool = Material.getMaterial(investigationToolMaterialName);
 		if(this.config_claims_investigationTool == null) {
-			GriefPrevention.AddLogEntry("ERROR: Material " + investigationToolMaterialName + " not found.  Defaulting to the stick.  Please update your config.yml.");
+			GriefPreventionLight.AddLogEntry("ERROR: Material " + investigationToolMaterialName + " not found.  Defaulting to the stick.  Please update your config.yml.");
 			this.config_claims_investigationTool = Material.STICK;
 		}
 
@@ -540,7 +540,7 @@ public class GriefPrevention extends JavaPlugin {
 		//validate modification tool
 		this.config_claims_modificationTool = Material.getMaterial(modificationToolMaterialName);
 		if(this.config_claims_modificationTool == null) {
-			GriefPrevention.AddLogEntry("ERROR: Material " + modificationToolMaterialName + " not found.  Defaulting to the golden shovel.  Please update your config.yml.");
+			GriefPreventionLight.AddLogEntry("ERROR: Material " + modificationToolMaterialName + " not found.  Defaulting to the golden shovel.  Please update your config.yml.");
 			this.config_claims_modificationTool = Material.GOLDEN_SHOVEL;
 		}
 
@@ -808,7 +808,7 @@ public class GriefPrevention extends JavaPlugin {
 
 		//claim
 		if(cmd.getName().equalsIgnoreCase("claim") && player != null) {
-			if(!GriefPrevention.instance.claimsEnabledForWorld(player.getWorld())) {
+			if(!GriefPreventionLight.instance.claimsEnabledForWorld(player.getWorld())) {
 				sendMessage(player, TextMode.Err, Messages.ClaimsDisabledWorld);
 				return true;
 			}
@@ -816,31 +816,31 @@ public class GriefPrevention extends JavaPlugin {
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 
 			//if he's at the claim count per player limit already and doesn't have permission to bypass, display an error message
-			if(GriefPrevention.instance.config_claims_maxClaimsPerPlayer > 0 &&
+			if(GriefPreventionLight.instance.config_claims_maxClaimsPerPlayer > 0 &&
 					!player.hasPermission("griefprevention.overrideclaimcountlimit") &&
-					playerData.getClaims().size() >= GriefPrevention.instance.config_claims_maxClaimsPerPlayer) {
+					playerData.getClaims().size() >= GriefPreventionLight.instance.config_claims_maxClaimsPerPlayer) {
 				sendMessage(player, TextMode.Err, Messages.ClaimCreationFailedOverClaimCountLimit);
 				return true;
 			}
 
 			//default is chest claim radius, unless -1
-			int radius = GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius;
-			if(radius < 0) radius = (int) Math.ceil(Math.sqrt(GriefPrevention.instance.config_claims_minArea) / 2);
+			int radius = GriefPreventionLight.instance.config_claims_automaticClaimsForNewPlayersRadius;
+			if(radius < 0) radius = (int) Math.ceil(Math.sqrt(GriefPreventionLight.instance.config_claims_minArea) / 2);
 
 			//if player has any claims, respect claim minimum size setting
 			if(playerData.getClaims().size() > 0) {
 				//if player has exactly one land claim, this requires the claim modification tool to be in hand (or creative mode player)
-				if(playerData.getClaims().size() == 1 && player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool) {
+				if(playerData.getClaims().size() == 1 && player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
 					sendMessage(player, TextMode.Err, Messages.MustHoldModificationToolForThat);
 					return true;
 				}
 
-				radius = (int) Math.ceil(Math.sqrt(GriefPrevention.instance.config_claims_minArea) / 2);
+				radius = (int) Math.ceil(Math.sqrt(GriefPreventionLight.instance.config_claims_minArea) / 2);
 			}
 
 			//allow for specifying the radius
 			if(args.length > 0) {
-				if(playerData.getClaims().size() < 2 && player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool) {
+				if(playerData.getClaims().size() < 2 && player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
 					sendMessage(player, TextMode.Err, Messages.RadiusRequiresGoldenShovel);
 					return true;
 				}
@@ -870,14 +870,14 @@ public class GriefPrevention extends JavaPlugin {
 			int remaining = playerData.getRemainingClaimBlocks();
 			if(remaining < area) {
 				sendMessage(player, TextMode.Err, Messages.CreateClaimInsufficientBlocks, String.valueOf(area - remaining));
-				GriefPrevention.instance.dataStore.tryAdvertiseAdminAlternatives(player);
+				GriefPreventionLight.instance.dataStore.tryAdvertiseAdminAlternatives(player);
 				return true;
 			}
 
 			CreateClaimResult result = this.dataStore.createClaim(lc.getWorld(),
 					lc.getBlockX(), gc.getBlockX(),
-					lc.getBlockY() - GriefPrevention.instance.config_claims_claimsExtendIntoGroundDistance - 1,
-					gc.getWorld().getHighestBlockYAt(gc) - GriefPrevention.instance.config_claims_claimsExtendIntoGroundDistance - 1,
+					lc.getBlockY() - GriefPreventionLight.instance.config_claims_claimsExtendIntoGroundDistance - 1,
+					gc.getWorld().getHighestBlockYAt(gc) - GriefPreventionLight.instance.config_claims_claimsExtendIntoGroundDistance - 1,
 					lc.getBlockZ(), gc.getBlockZ(),
 					player.getUniqueId(), null, null, player);
 			if(!result.succeeded) {
@@ -893,9 +893,9 @@ public class GriefPrevention extends JavaPlugin {
 				sendMessage(player, TextMode.Success, Messages.CreateClaimSuccess);
 
 				//link to a video demo of land claiming, based on world type
-				if(GriefPrevention.instance.creativeRulesApply(player.getLocation())) {
+				if(GriefPreventionLight.instance.creativeRulesApply(player.getLocation())) {
 					sendMessage(player, TextMode.Instr, Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				} else if(GriefPrevention.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
+				} else if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
 				Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
@@ -913,9 +913,9 @@ public class GriefPrevention extends JavaPlugin {
 		if(cmd.getName().equalsIgnoreCase("extendclaim") && player != null) {
 			if(args.length < 1) {
 				//link to a video demo of land claiming, based on world type
-				if(GriefPrevention.instance.creativeRulesApply(player.getLocation())) {
+				if(GriefPreventionLight.instance.creativeRulesApply(player.getLocation())) {
 					sendMessage(player, TextMode.Instr, Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				} else if(GriefPrevention.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
+				} else if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
 				return false;
@@ -926,16 +926,16 @@ public class GriefPrevention extends JavaPlugin {
 				amount = Integer.parseInt(args[0]);
 			} catch(NumberFormatException e) {
 				//link to a video demo of land claiming, based on world type
-				if(GriefPrevention.instance.creativeRulesApply(player.getLocation())) {
+				if(GriefPreventionLight.instance.creativeRulesApply(player.getLocation())) {
 					sendMessage(player, TextMode.Instr, Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				} else if(GriefPrevention.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
+				} else if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
 				return false;
 			}
 
 			//requires claim modification tool in hand
-			if(player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool) {
+			if(player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
 				sendMessage(player, TextMode.Err, Messages.MustHoldModificationToolForThat);
 				return true;
 			}
@@ -1171,7 +1171,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			//confirm
 			sendMessage(player, TextMode.Success, Messages.TransferSuccess);
-			GriefPrevention.AddLogEntry(player.getName() + " transferred a claim at " + GriefPrevention.getfriendlyLocationString(claim.getLesserBoundaryCorner()) + " to " + ownerName + ".", CustomLogEntryTypes.AdminActivity);
+			GriefPreventionLight.AddLogEntry(player.getName() + " transferred a claim at " + GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()) + " to " + ownerName + ".", CustomLogEntryTypes.AdminActivity);
 
 			return true;
 		}
@@ -1189,7 +1189,7 @@ public class GriefPrevention extends JavaPlugin {
 			//if no permission to manage permissions, error message
 			String errorMessage = claim.allowGrantPermission(player);
 			if(errorMessage != null) {
-				GriefPrevention.sendMessage(player, TextMode.Err, errorMessage);
+				GriefPreventionLight.sendMessage(player, TextMode.Err, errorMessage);
 				return true;
 			}
 
@@ -1477,7 +1477,7 @@ public class GriefPrevention extends JavaPlugin {
 			}
 
 			//if purchase disabled, send error message
-			if(GriefPrevention.instance.config_economy_claimBlocksPurchaseCost == 0) {
+			if(GriefPreventionLight.instance.config_economy_claimBlocksPurchaseCost == 0) {
 				sendMessage(player, TextMode.Err, Messages.OnlySellBlocks);
 				return true;
 			}
@@ -1486,7 +1486,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			//if no parameter, just tell player cost per block and balance
 			if(args.length != 1) {
-				sendMessage(player, TextMode.Info, Messages.BlockPurchaseCost, String.valueOf(GriefPrevention.instance.config_economy_claimBlocksPurchaseCost), String.valueOf(economy.getBalance(player)));
+				sendMessage(player, TextMode.Info, Messages.BlockPurchaseCost, String.valueOf(GriefPreventionLight.instance.config_economy_claimBlocksPurchaseCost), String.valueOf(economy.getBalance(player)));
 				return false;
 			} else {
 				PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
@@ -1505,7 +1505,7 @@ public class GriefPrevention extends JavaPlugin {
 
 				//if the player can't afford his purchase, send error message
 				double balance = economy.getBalance(player);
-				double totalCost = blockCount * GriefPrevention.instance.config_economy_claimBlocksPurchaseCost;
+				double totalCost = blockCount * GriefPreventionLight.instance.config_economy_claimBlocksPurchaseCost;
 				if(totalCost > balance) {
 					sendMessage(player, TextMode.Err, Messages.InsufficientFunds, String.valueOf(totalCost), String.valueOf(balance));
 				}
@@ -1515,7 +1515,7 @@ public class GriefPrevention extends JavaPlugin {
 					int newBonusClaimBlocks = playerData.getBonusClaimBlocks() + blockCount;
 
 					//if the player is going to reach max bonus limit, send error message
-					int bonusBlocksLimit = GriefPrevention.instance.config_economy_claimBlocksMaxBonus;
+					int bonusBlocksLimit = GriefPreventionLight.instance.config_economy_claimBlocksMaxBonus;
 					if(bonusBlocksLimit != 0 && newBonusClaimBlocks > bonusBlocksLimit) {
 						sendMessage(player, TextMode.Err, Messages.MaxBonusReached, String.valueOf(blockCount), String.valueOf(bonusBlocksLimit));
 						return true;
@@ -1551,7 +1551,7 @@ public class GriefPrevention extends JavaPlugin {
 			}
 
 			//if disabled, error message
-			if(GriefPrevention.instance.config_economy_claimBlocksSellValue == 0) {
+			if(GriefPreventionLight.instance.config_economy_claimBlocksSellValue == 0) {
 				sendMessage(player, TextMode.Err, Messages.OnlyPurchaseBlocks);
 				return true;
 			}
@@ -1562,7 +1562,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			//if no amount provided, just tell player value per block sold, and how many he can sell
 			if(args.length != 1) {
-				sendMessage(player, TextMode.Info, Messages.BlockSaleValue, String.valueOf(GriefPrevention.instance.config_economy_claimBlocksSellValue), String.valueOf(availableBlocks));
+				sendMessage(player, TextMode.Info, Messages.BlockSaleValue, String.valueOf(GriefPreventionLight.instance.config_economy_claimBlocksSellValue), String.valueOf(availableBlocks));
 				return false;
 			}
 
@@ -1586,7 +1586,7 @@ public class GriefPrevention extends JavaPlugin {
 			//otherwise carry out the transaction
 			else {
 				//compute value and deposit it
-				double totalValue = blockCount * GriefPrevention.instance.config_economy_claimBlocksSellValue;
+				double totalValue = blockCount * GriefPreventionLight.instance.config_economy_claimBlocksSellValue;
 				economyWrapper.getEconomy().depositPlayer(player, totalValue);
 
 				//subtract blocks
@@ -1649,12 +1649,12 @@ public class GriefPrevention extends JavaPlugin {
 						this.dataStore.deleteClaim(claim, true, true);
 
 						//if in a creative mode world, /restorenature the claim
-						if(GriefPrevention.instance.creativeRulesApply(claim.getLesserBoundaryCorner()) || GriefPrevention.instance.config_claims_survivalAutoNatureRestoration) {
-							GriefPrevention.instance.restoreClaim(claim, 0);
+						if(GriefPreventionLight.instance.creativeRulesApply(claim.getLesserBoundaryCorner()) || GriefPreventionLight.instance.config_claims_survivalAutoNatureRestoration) {
+							GriefPreventionLight.instance.restoreClaim(claim, 0);
 						}
 
 						sendMessage(player, TextMode.Success, Messages.DeleteSuccess);
-						GriefPrevention.AddLogEntry(player.getName() + " deleted " + claim.getOwnerName() + "'s claim at " + GriefPrevention.getfriendlyLocationString(claim.getLesserBoundaryCorner()), CustomLogEntryTypes.AdminActivity);
+						GriefPreventionLight.AddLogEntry(player.getName() + " deleted " + claim.getOwnerName() + "'s claim at " + GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()), CustomLogEntryTypes.AdminActivity);
 
 						//revert any current visualization
 						Visualization.Revert(player);
@@ -1676,7 +1676,7 @@ public class GriefPrevention extends JavaPlugin {
 			} else {
 				String noBuildReason = claim.allowBuild(player, Material.STONE);
 				if(noBuildReason != null) {
-					GriefPrevention.sendMessage(player, TextMode.Err, noBuildReason);
+					GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 					return true;
 				}
 
@@ -1709,7 +1709,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			sendMessage(player, TextMode.Success, Messages.DeleteAllSuccess, otherPlayer.getName());
 			if(player != null) {
-				GriefPrevention.AddLogEntry(player.getName() + " deleted all claims belonging to " + otherPlayer.getName() + ".", CustomLogEntryTypes.AdminActivity);
+				GriefPreventionLight.AddLogEntry(player.getName() + " deleted all claims belonging to " + otherPlayer.getName() + ".", CustomLogEntryTypes.AdminActivity);
 
 				//revert any current visualization
 				Visualization.Revert(player);
@@ -1735,7 +1735,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			//delete all claims in that world
 			this.dataStore.deleteClaimsInWorld(world, true);
-			GriefPrevention.AddLogEntry("Deleted all claims in world: " + world.getName() + ".", CustomLogEntryTypes.AdminActivity);
+			GriefPreventionLight.AddLogEntry("Deleted all claims in world: " + world.getName() + ".", CustomLogEntryTypes.AdminActivity);
 			return true;
 		} else if(cmd.getName().equalsIgnoreCase("deleteuserclaimsinworld")) {
 			//must be executed at the console
@@ -1756,7 +1756,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			//delete all USER claims in that world
 			this.dataStore.deleteClaimsInWorld(world, false);
-			GriefPrevention.AddLogEntry("Deleted all user claims in world: " + world.getName() + ".", CustomLogEntryTypes.AdminActivity);
+			GriefPreventionLight.AddLogEntry("Deleted all user claims in world: " + world.getName() + ".", CustomLogEntryTypes.AdminActivity);
 			return true;
 		}
 
@@ -1819,7 +1819,7 @@ public class GriefPrevention extends JavaPlugin {
 				sendMessage(player, TextMode.Instr, Messages.ClaimsListHeader);
 				for(int i = 0; i < playerData.getClaims().size(); i++) {
 					Claim claim = playerData.getClaims().get(i);
-					GriefPrevention.sendMessage(player, TextMode.Instr, getfriendlyLocationString(claim.getLesserBoundaryCorner()) + this.dataStore.getMessage(Messages.ContinueBlockMath, String.valueOf(claim.getArea())));
+					GriefPreventionLight.sendMessage(player, TextMode.Instr, getfriendlyLocationString(claim.getLesserBoundaryCorner()) + this.dataStore.getMessage(Messages.ContinueBlockMath, String.valueOf(claim.getArea())));
 				}
 
 				sendMessage(player, TextMode.Instr, Messages.EndBlockMath, String.valueOf(playerData.getRemainingClaimBlocks()));
@@ -1845,7 +1845,7 @@ public class GriefPrevention extends JavaPlugin {
 			if(claims.size() > 0) {
 				sendMessage(player, TextMode.Instr, Messages.ClaimsListHeader);
 				for(Claim claim : claims) {
-					GriefPrevention.sendMessage(player, TextMode.Instr, getfriendlyLocationString(claim.getLesserBoundaryCorner()));
+					GriefPreventionLight.sendMessage(player, TextMode.Instr, getfriendlyLocationString(claim.getLesserBoundaryCorner()));
 				}
 			}
 
@@ -1887,7 +1887,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			sendMessage(player, TextMode.Success, Messages.AllAdminDeleted);
 			if(player != null) {
-				GriefPrevention.AddLogEntry(player.getName() + " deleted all administrative claims.", CustomLogEntryTypes.AdminActivity);
+				GriefPreventionLight.AddLogEntry(player.getName() + " deleted all administrative claims.", CustomLogEntryTypes.AdminActivity);
 
 				//revert any current visualization
 				Visualization.Revert(player);
@@ -1916,7 +1916,7 @@ public class GriefPrevention extends JavaPlugin {
 
 				sendMessage(player, TextMode.Success, Messages.AdjustGroupBlocksSuccess, permissionIdentifier, String.valueOf(adjustment), String.valueOf(newTotal));
 				if(player != null)
-					GriefPrevention.AddLogEntry(player.getName() + " adjusted " + permissionIdentifier + "'s bonus claim blocks by " + adjustment + ".");
+					GriefPreventionLight.AddLogEntry(player.getName() + " adjusted " + permissionIdentifier + "'s bonus claim blocks by " + adjustment + ".");
 
 				return true;
 			}
@@ -1943,7 +1943,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			sendMessage(player, TextMode.Success, Messages.AdjustBlocksSuccess, targetPlayer.getName(), String.valueOf(adjustment), String.valueOf(playerData.getBonusClaimBlocks()));
 			if(player != null)
-				GriefPrevention.AddLogEntry(player.getName() + " adjusted " + targetPlayer.getName() + "'s bonus claim blocks by " + adjustment + ".", CustomLogEntryTypes.AdminActivity);
+				GriefPreventionLight.AddLogEntry(player.getName() + " adjusted " + targetPlayer.getName() + "'s bonus claim blocks by " + adjustment + ".", CustomLogEntryTypes.AdminActivity);
 
 			return true;
 		}
@@ -1974,7 +1974,7 @@ public class GriefPrevention extends JavaPlugin {
 			}
 
 			sendMessage(player, TextMode.Success, Messages.AdjustBlocksAllSuccess, String.valueOf(adjustment));
-			GriefPrevention.AddLogEntry("Adjusted all " + players.size() + "players' bonus claim blocks by " + adjustment + ".  " + builder.toString(), CustomLogEntryTypes.AdminActivity);
+			GriefPreventionLight.AddLogEntry("Adjusted all " + players.size() + "players' bonus claim blocks by " + adjustment + ".  " + builder.toString(), CustomLogEntryTypes.AdminActivity);
 
 			return true;
 		}
@@ -2006,7 +2006,7 @@ public class GriefPrevention extends JavaPlugin {
 
 			sendMessage(player, TextMode.Success, Messages.SetClaimBlocksSuccess);
 			if(player != null)
-				GriefPrevention.AddLogEntry(player.getName() + " set " + targetPlayer.getName() + "'s accrued claim blocks to " + newAmount + ".", CustomLogEntryTypes.AdminActivity);
+				GriefPreventionLight.AddLogEntry(player.getName() + " set " + targetPlayer.getName() + "'s accrued claim blocks to " + newAmount + ".", CustomLogEntryTypes.AdminActivity);
 
 			return true;
 		}
@@ -2040,7 +2040,7 @@ public class GriefPrevention extends JavaPlugin {
 			}
 
 			//if the player is in an administrative claim and AllowTrappedInAdminClaims is false, he should contact an admin
-			if(!GriefPrevention.instance.config_claims_allowTrappedInAdminClaims && claim.isAdminClaim() && event.getDestination() == null) {
+			if(!GriefPreventionLight.instance.config_claims_allowTrappedInAdminClaims && claim.isAdminClaim() && event.getDestination() == null) {
 				sendMessage(player, TextMode.Err, Messages.TrappedWontWorkHere);
 				return true;
 			}
@@ -2109,7 +2109,7 @@ public class GriefPrevention extends JavaPlugin {
 					executorName = player.getName();
 				}
 
-				GriefPrevention.AddLogEntry(executorName + " muted " + targetPlayer.getName() + ".", CustomLogEntryTypes.AdminActivity, true);
+				GriefPreventionLight.AddLogEntry(executorName + " muted " + targetPlayer.getName() + ".", CustomLogEntryTypes.AdminActivity, true);
 			} else {
 				sendMessage(player, TextMode.Success, Messages.UnSoftMuted, targetPlayer.getName());
 			}
@@ -2118,9 +2118,9 @@ public class GriefPrevention extends JavaPlugin {
 		} else if(cmd.getName().equalsIgnoreCase("gpreload")) {
 			this.loadConfig();
 			if(player != null) {
-				GriefPrevention.sendMessage(player, TextMode.Success, "Configuration updated.  If you have updated your Grief Prevention JAR, you still need to /reload or reboot your server.");
+				GriefPreventionLight.sendMessage(player, TextMode.Success, "Configuration updated.  If you have updated your Grief Prevention JAR, you still need to /reload or reboot your server.");
 			} else {
-				GriefPrevention.AddLogEntry("Configuration updated.  If you have updated your Grief Prevention JAR, you still need to /reload or reboot your server.");
+				GriefPreventionLight.AddLogEntry("Configuration updated.  If you have updated your Grief Prevention JAR, you still need to /reload or reboot your server.");
 			}
 
 			return true;
@@ -2221,7 +2221,7 @@ public class GriefPrevention extends JavaPlugin {
 				if(entry.getValue() != null) {
 					//if not an admin ignore, add it to the list
 					if(!entry.getValue()) {
-						builder.append(GriefPrevention.lookupPlayerName(entry.getKey()));
+						builder.append(GriefPreventionLight.lookupPlayerName(entry.getKey()));
 						builder.append(" ");
 					}
 				}
@@ -2231,7 +2231,7 @@ public class GriefPrevention extends JavaPlugin {
 			if(list.isEmpty()) {
 				sendMessage(player, TextMode.Info, Messages.NotIgnoringAnyone);
 			} else {
-				GriefPrevention.sendMessage(player, TextMode.Info, list);
+				GriefPreventionLight.sendMessage(player, TextMode.Info, list);
 			}
 
 			return true;
@@ -2311,7 +2311,7 @@ public class GriefPrevention extends JavaPlugin {
 		if(entry.startsWith("[") || entry.equals("public")) {
 			return entry;
 		} else {
-			return GriefPrevention.lookupPlayerName(entry);
+			return GriefPreventionLight.lookupPlayerName(entry);
 		}
 	}
 
@@ -2343,10 +2343,10 @@ public class GriefPrevention extends JavaPlugin {
 			this.dataStore.deleteClaim(claim, true, false);
 
 			//if in a creative mode world, restore the claim area
-			if(GriefPrevention.instance.creativeRulesApply(claim.getLesserBoundaryCorner())) {
-				GriefPrevention.AddLogEntry(player.getName() + " abandoned a claim @ " + GriefPrevention.getfriendlyLocationString(claim.getLesserBoundaryCorner()));
+			if(GriefPreventionLight.instance.creativeRulesApply(claim.getLesserBoundaryCorner())) {
+				GriefPreventionLight.AddLogEntry(player.getName() + " abandoned a claim @ " + GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()));
 				sendMessage(player, TextMode.Warn, Messages.UnclaimCleanupWarning);
-				GriefPrevention.instance.restoreClaim(claim, 20L * 60 * 2);
+				GriefPreventionLight.instance.restoreClaim(claim, 20L * 60 * 2);
 			}
 
 			//adjust claim blocks when abandoning a top level claim
@@ -2569,7 +2569,7 @@ public class GriefPrevention extends JavaPlugin {
 		if(playerID == null) return "somebody";
 
 		//check the cache
-		OfflinePlayer player = GriefPrevention.instance.getServer().getOfflinePlayer(playerID);
+		OfflinePlayer player = GriefPreventionLight.instance.getServer().getOfflinePlayer(playerID);
 		if(player.hasPlayedBefore() || player.isOnline()) {
 			return player.getName();
 		} else {
@@ -2580,8 +2580,8 @@ public class GriefPrevention extends JavaPlugin {
 	//cache for player name lookups, to save searches of all offline players
 	static void cacheUUIDNamePair(UUID playerID, String playerName) {
 		//store the reverse mapping
-		GriefPrevention.instance.playerNameToIDMap.put(playerName, playerID);
-		GriefPrevention.instance.playerNameToIDMap.put(playerName.toLowerCase(), playerID);
+		GriefPreventionLight.instance.playerNameToIDMap.put(playerName, playerID);
+		GriefPreventionLight.instance.playerNameToIDMap.put(playerName.toLowerCase(), playerID);
 	}
 
 	//string overload for above helper
@@ -2590,7 +2590,7 @@ public class GriefPrevention extends JavaPlugin {
 		try {
 			id = UUID.fromString(playerID);
 		} catch(IllegalArgumentException ex) {
-			GriefPrevention.AddLogEntry("Error: Tried to look up a local player name for invalid UUID: " + playerID);
+			GriefPreventionLight.AddLogEntry("Error: Tried to look up a local player name for invalid UUID: " + playerID);
 			return "someone";
 		}
 
@@ -2625,7 +2625,7 @@ public class GriefPrevention extends JavaPlugin {
 		if(player.hasPermission("griefprevention.nopvpimmunity")) return;
 
 		//check inventory for well, anything
-		if(GriefPrevention.isInventoryEmpty(player)) {
+		if(GriefPreventionLight.isInventoryEmpty(player)) {
 			//if empty, apply immunity
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 		}
@@ -2655,7 +2655,7 @@ public class GriefPrevention extends JavaPlugin {
 		Location candidateLocation = player.getLocation();
 		while(true) {
 			Claim claim = null;
-			claim = GriefPrevention.instance.dataStore.getClaimAt(candidateLocation, false, null);
+			claim = GriefPreventionLight.instance.dataStore.getClaimAt(candidateLocation, false, null);
 
 			//if there's a claim here, keep looking
 			if(claim != null) {
@@ -2689,7 +2689,7 @@ public class GriefPrevention extends JavaPlugin {
 
 	//sends a color-coded message to a player
 	public static void sendMessage(Player player, ChatColor color, Messages messageID, long delayInTicks, String... args) {
-		String message = GriefPrevention.instance.dataStore.getMessage(messageID, args);
+		String message = GriefPreventionLight.instance.dataStore.getMessage(messageID, args);
 		sendMessage(player, color, message, delayInTicks);
 	}
 
@@ -2698,7 +2698,7 @@ public class GriefPrevention extends JavaPlugin {
 		if(message == null || message.length() == 0) return;
 
 		if(player == null) {
-			GriefPrevention.AddLogEntry(color + message);
+			GriefPreventionLight.AddLogEntry(color + message);
 		} else {
 			player.sendMessage(color + message);
 		}
@@ -2709,7 +2709,7 @@ public class GriefPrevention extends JavaPlugin {
 
 		//Only schedule if there should be a delay. Otherwise, send the message right now, else the message will appear out of order.
 		if(delayInTicks > 0) {
-			GriefPrevention.instance.getServer().getScheduler().runTaskLater(GriefPrevention.instance, task, delayInTicks);
+			GriefPreventionLight.instance.getServer().getScheduler().runTaskLater(GriefPreventionLight.instance, task, delayInTicks);
 		} else {
 			task.run();
 		}
@@ -2733,7 +2733,7 @@ public class GriefPrevention extends JavaPlugin {
 	}
 
 	public String allowBuild(Player player, Location location, Material material) {
-		if(!GriefPrevention.instance.claimsEnabledForWorld(location.getWorld())) return null;
+		if(!GriefPreventionLight.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 		Claim claim = this.dataStore.getClaimAt(location, false, playerData.lastClaim);
@@ -2746,7 +2746,7 @@ public class GriefPrevention extends JavaPlugin {
 			//no building in the wilderness in creative mode
 			if(this.creativeRulesApply(location) || this.config_claims_worldModes.get(location.getWorld()) == ClaimsMode.SurvivalRequiringClaims) {
 				//exception: when chest claims are enabled, players who have zero land claims and are placing a chest
-				if(material != Material.CHEST || playerData.getClaims().size() > 0 || GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius == -1) {
+				if(material != Material.CHEST || playerData.getClaims().size() > 0 || GriefPreventionLight.instance.config_claims_automaticClaimsForNewPlayersRadius == -1) {
 					String reason = this.dataStore.getMessage(Messages.NoBuildOutsideClaims);
 					if(player.hasPermission("griefprevention.ignoreclaims"))
 						reason += "  " + this.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
@@ -2776,7 +2776,7 @@ public class GriefPrevention extends JavaPlugin {
 	}
 
 	public String allowBreak(Player player, Block block, Location location, BlockBreakEvent breakEvent) {
-		if(!GriefPrevention.instance.claimsEnabledForWorld(location.getWorld())) return null;
+		if(!GriefPreventionLight.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 		Claim claim = this.dataStore.getClaimAt(location, false, playerData.lastClaim);
@@ -2855,8 +2855,8 @@ public class GriefPrevention extends JavaPlugin {
 
 		//create task
 		//when done processing, this task will create a main thread task to actually update the world with processing results
-		RestoreNatureProcessingTask task = new RestoreNatureProcessingTask(snapshots, miny, chunk.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome(), lesserBoundaryCorner, greaterBoundaryCorner, this.getSeaLevel(chunk.getWorld()), aggressiveMode, GriefPrevention.instance.creativeRulesApply(lesserBoundaryCorner), playerReceivingVisualization);
-		GriefPrevention.instance.getServer().getScheduler().runTaskLaterAsynchronously(GriefPrevention.instance, task, delayInTicks);
+		RestoreNatureProcessingTask task = new RestoreNatureProcessingTask(snapshots, miny, chunk.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome(), lesserBoundaryCorner, greaterBoundaryCorner, this.getSeaLevel(chunk.getWorld()), aggressiveMode, GriefPreventionLight.instance.creativeRulesApply(lesserBoundaryCorner), playerReceivingVisualization);
+		GriefPreventionLight.instance.getServer().getScheduler().runTaskLaterAsynchronously(GriefPreventionLight.instance, task, delayInTicks);
 	}
 
 	private Set<Material> parseMaterialListFromConfig(List<String> stringsToParse) {
@@ -2880,7 +2880,7 @@ public class GriefPrevention extends JavaPlugin {
 					stringsToParse.set(i, string + "     <-- can't understand this entry, see BukkitDev documentation");
 
 					//warn about invalid material in log
-					GriefPrevention.AddLogEntry(String.format("ERROR: Invalid material %s.  Please update your config.yml.", string));
+					GriefPreventionLight.AddLogEntry(String.format("ERROR: Invalid material %s.  Please update your config.yml.", string));
 				}
 			}
 
@@ -2910,7 +2910,7 @@ public class GriefPrevention extends JavaPlugin {
 		//if it looks like an IP address
 		if(matcher.find()) {
 			//and it's not in the list of allowed IP addresses
-			return !GriefPrevention.instance.config_spam_allowedIpAddresses.contains(matcher.group());
+			return !GriefPreventionLight.instance.config_spam_allowedIpAddresses.contains(matcher.group());
 		}
 
 		return false;
@@ -2930,7 +2930,7 @@ public class GriefPrevention extends JavaPlugin {
 			}
 		}
 
-		Bukkit.getScheduler().runTaskAsynchronously(GriefPrevention.instance, new AutoExtendClaimTask(newClaim, snapshots, world.getEnvironment()));
+		Bukkit.getScheduler().runTaskAsynchronously(GriefPreventionLight.instance, new AutoExtendClaimTask(newClaim, snapshots, world.getEnvironment()));
 	}
 
 	public static boolean isNewToServer(Player player) {
@@ -2946,10 +2946,10 @@ public class GriefPrevention extends JavaPlugin {
 	}
 
 	static void banPlayer(Player player, String reason, String source) {
-		if(GriefPrevention.instance.config_ban_useCommand) {
+		if(GriefPreventionLight.instance.config_ban_useCommand) {
 			Bukkit.getServer().dispatchCommand(
 					Bukkit.getConsoleSender(),
-					GriefPrevention.instance.config_ban_commandFormat.replace("%name%", player.getName()).replace("%reason%", reason));
+					GriefPreventionLight.instance.config_ban_commandFormat.replace("%name%", player.getName()).replace("%reason%", reason));
 		} else {
 			BanList bans = Bukkit.getServer().getBanList(Type.NAME);
 			bans.addBan(player.getName(), reason, null, source);
@@ -3027,7 +3027,7 @@ public class GriefPrevention extends JavaPlugin {
 
 	public void startRescueTask(Player player, Location location) {
 		//Schedule task to reset player's portal cooldown after 30 seconds (Maximum timeout time for client, in case their network is slow and taking forever to load chunks)
-		BukkitTask task = new CheckForPortalTrapTask(player, this, location).runTaskLater(GriefPrevention.instance, 600L);
+		BukkitTask task = new CheckForPortalTrapTask(player, this, location).runTaskLater(GriefPreventionLight.instance, 600L);
 
 		//Cancel existing rescue task
 		if(portalReturnTaskMap.containsKey(player.getUniqueId()))
