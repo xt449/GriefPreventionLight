@@ -1,5 +1,5 @@
 name: GriefPreventionLight
-main: com.github.xt449.GriefPreventionLight.GriefPreventionLight
+main: com.github.xt449.griefpreventionlight.GriefPreventionLight
 softdepend: [Vault, Multiverse-Core, MystCraft, Transporter, TheUnderground, WorldGuard, WorldEdit, RoyalCommands, MultiWorld, Denizen]
 loadbefore: [TheUnderground]
 version: '${project.version}'
