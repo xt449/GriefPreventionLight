@@ -69,7 +69,6 @@ public class GriefPreventionLight extends JavaPlugin {
 
 	//claim mode for each world
 	public ConcurrentHashMap<World, ClaimsMode> config_claims_worldModes;
-	private boolean config_creativeWorldsExist;                     //note on whether there are any creative mode worlds, to save cpu cycles on a common hash lookup
 
 	public boolean config_claims_preventGlobalMonsterEggs; //whether monster eggs can be placed regardless of trust.
 	public boolean config_claims_preventTheft;                        //whether containers and crafting blocks are protectable
@@ -84,7 +83,6 @@ public class GriefPreventionLight extends JavaPlugin {
 	public boolean config_claims_enderPearlsRequireAccessTrust;        //whether teleporting into a claim with a pearl requires access trust
 	public boolean config_claims_raidTriggersRequireBuildTrust;      //whether raids are triggered by a player that doesn't have build permission in that claim
 	public int config_claims_maxClaimsPerPlayer;                    //maximum number of claims per player
-	public boolean config_claims_respectWorldGuard;                 //whether claim creations requires WG build permission in creation area
 	public boolean config_claims_villagerTradingRequiresTrust;      //whether trading with a claimed villager requires permission
 
 	public int config_claims_initialBlocks;                            //the number of claim blocks a new player starts with
@@ -106,7 +104,6 @@ public class GriefPreventionLight extends JavaPlugin {
 
 	public int config_claims_chestClaimExpirationDays;                //number of days of inactivity before an automatic chest claim will be deleted
 	public int config_claims_unusedClaimExpirationDays;                //number of days of inactivity before an unused (nothing build) claim will be deleted
-	public boolean config_claims_survivalAutoNatureRestoration;        //whether survival claims will be automatically restored to nature when auto-deleted
 	public boolean config_claims_allowTrappedInAdminClaims;            //whether it should be allowed to use /trapped in adminclaims.
 
 	public Material config_claims_investigationTool;                //which material will be used to investigate claims with a right click
@@ -282,10 +279,6 @@ public class GriefPreventionLight extends JavaPlugin {
 			this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task, 20L * 60 * 10, 20L * 60 * 10);
 		}
 
-		//start the recurring cleanup event for entities in creative worlds
-		EntityCleanupTask task = new EntityCleanupTask(0);
-		this.getServer().getScheduler().scheduleSyncDelayedTask(GriefPreventionLight.instance, task, 20L * 60 * 2);
-
 		//start recurring cleanup scan for unused claims belonging to inactive players
 		FindUnusedClaimsTask task2 = new FindUnusedClaimsTask();
 		this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task2, 20L * 60, 20L * config_advanced_claim_expiration_check_rate);
@@ -346,21 +339,8 @@ public class GriefPreventionLight extends JavaPlugin {
 			}
 		}
 
-		//get (deprecated node) creative world names from the config file
-		List<String> deprecated_creativeClaimsEnabledWorldNames = config.getStringList("GriefPrevention.Claims.CreativeRulesWorlds");
-
-		//validate that list
-		for(int i = 0; i < deprecated_creativeClaimsEnabledWorldNames.size(); i++) {
-			String worldName = deprecated_creativeClaimsEnabledWorldNames.get(i);
-			World world = this.getServer().getWorld(worldName);
-			if(world == null) {
-				deprecated_claimsEnabledWorldNames.remove(i--);
-			}
-		}
-
 		//decide claim mode for each world
 		this.config_claims_worldModes = new ConcurrentHashMap<>();
-		this.config_creativeWorldsExist = false;
 		for(World world : worlds) {
 			//is it specified in the config file?
 			String configSetting = config.getString("GriefPrevention.Claims.Mode." + world.getName());
@@ -368,36 +348,24 @@ public class GriefPreventionLight extends JavaPlugin {
 				ClaimsMode claimsMode = this.configStringToClaimsMode(configSetting);
 				if(claimsMode != null) {
 					this.config_claims_worldModes.put(world, claimsMode);
-					if(claimsMode == ClaimsMode.Creative) this.config_creativeWorldsExist = true;
 					continue;
 				} else {
 					GriefPreventionLight.AddLogEntry("Error: Invalid claim mode \"" + configSetting + "\".  Options are Survival, Creative, and Disabled.");
-					this.config_claims_worldModes.put(world, ClaimsMode.Creative);
-					this.config_creativeWorldsExist = true;
 				}
 			}
 
 			//was it specified in a deprecated config node?
-			if(deprecated_creativeClaimsEnabledWorldNames.contains(world.getName())) {
-				this.config_claims_worldModes.put(world, ClaimsMode.Creative);
-				this.config_creativeWorldsExist = true;
-			} else if(deprecated_claimsEnabledWorldNames.contains(world.getName())) {
+			if(deprecated_claimsEnabledWorldNames.contains(world.getName())) {
 				this.config_claims_worldModes.put(world, ClaimsMode.Survival);
 			}
 
 			//does the world's name indicate its purpose?
 			else if(world.getName().toLowerCase().contains("survival")) {
 				this.config_claims_worldModes.put(world, ClaimsMode.Survival);
-			} else if(world.getName().toLowerCase().contains("creative")) {
-				this.config_claims_worldModes.put(world, ClaimsMode.Creative);
-				this.config_creativeWorldsExist = true;
 			}
 
 			//decide a default based on server type and world type
-			else if(this.getServer().getDefaultGameMode() == GameMode.CREATIVE) {
-				this.config_claims_worldModes.put(world, ClaimsMode.Creative);
-				this.config_creativeWorldsExist = true;
-			} else if(world.getEnvironment() == Environment.NORMAL) {
+			else if(world.getEnvironment() == Environment.NORMAL) {
 				this.config_claims_worldModes.put(world, ClaimsMode.Survival);
 			} else {
 				this.config_claims_worldModes.put(world, ClaimsMode.Disabled);
@@ -453,11 +421,9 @@ public class GriefPreventionLight extends JavaPlugin {
 		this.config_claims_expirationDays = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.DaysInactive", 60);
 		this.config_claims_expirationExemptionTotalBlocks = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasTotalClaimBlocks", 10000);
 		this.config_claims_expirationExemptionBonusBlocks = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasBonusClaimBlocks", 5000);
-		this.config_claims_survivalAutoNatureRestoration = config.getBoolean("GriefPrevention.Claims.Expiration.AutomaticNatureRestoration.SurvivalWorlds", false);
 		this.config_claims_allowTrappedInAdminClaims = config.getBoolean("GriefPrevention.Claims.AllowTrappedInAdminClaims", false);
 
 		this.config_claims_maxClaimsPerPlayer = config.getInt("GriefPrevention.Claims.MaximumNumberOfClaimsPerPlayer", 0);
-		this.config_claims_respectWorldGuard = config.getBoolean("GriefPrevention.Claims.CreationRequiresWorldGuardBuildPermission", true);
 		this.config_claims_villagerTradingRequiresTrust = config.getBoolean("GriefPrevention.Claims.VillagerTradingRequiresPermission", true);
 		String accessTrustSlashCommands = config.getString("GriefPrevention.Claims.CommandsRequiringAccessTrust", "/sethome");
 		this.config_claims_supplyPlayerManual = config.getBoolean("GriefPrevention.Claims.DeliverManuals", true);
@@ -673,10 +639,8 @@ public class GriefPreventionLight extends JavaPlugin {
 		outConfig.set("GriefPrevention.Claims.Expiration.AllClaims.DaysInactive", this.config_claims_expirationDays);
 		outConfig.set("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasTotalClaimBlocks", this.config_claims_expirationExemptionTotalBlocks);
 		outConfig.set("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasBonusClaimBlocks", this.config_claims_expirationExemptionBonusBlocks);
-		outConfig.set("GriefPrevention.Claims.Expiration.AutomaticNatureRestoration.SurvivalWorlds", this.config_claims_survivalAutoNatureRestoration);
 		outConfig.set("GriefPrevention.Claims.AllowTrappedInAdminClaims", this.config_claims_allowTrappedInAdminClaims);
 		outConfig.set("GriefPrevention.Claims.MaximumNumberOfClaimsPerPlayer", this.config_claims_maxClaimsPerPlayer);
-		outConfig.set("GriefPrevention.Claims.CreationRequiresWorldGuardBuildPermission", this.config_claims_respectWorldGuard);
 		outConfig.set("GriefPrevention.Claims.VillagerTradingRequiresPermission", this.config_claims_villagerTradingRequiresTrust);
 		outConfig.set("GriefPrevention.Claims.CommandsRequiringAccessTrust", accessTrustSlashCommands);
 		outConfig.set("GriefPrevention.Claims.DeliverManuals", config_claims_supplyPlayerManual);
@@ -787,8 +751,6 @@ public class GriefPreventionLight extends JavaPlugin {
 	private ClaimsMode configStringToClaimsMode(String configSetting) {
 		if(configSetting.equalsIgnoreCase("Survival")) {
 			return ClaimsMode.Survival;
-		} else if(configSetting.equalsIgnoreCase("Creative")) {
-			return ClaimsMode.Creative;
 		} else if(configSetting.equalsIgnoreCase("Disabled")) {
 			return ClaimsMode.Disabled;
 		} else if(configSetting.equalsIgnoreCase("SurvivalRequiringClaims")) {
@@ -876,8 +838,6 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			CreateClaimResult result = this.dataStore.createClaim(lc.getWorld(),
 					lc.getBlockX(), gc.getBlockX(),
-					lc.getBlockY() - GriefPreventionLight.instance.config_claims_claimsExtendIntoGroundDistance - 1,
-					gc.getWorld().getHighestBlockYAt(gc) - GriefPreventionLight.instance.config_claims_claimsExtendIntoGroundDistance - 1,
 					lc.getBlockZ(), gc.getBlockZ(),
 					player.getUniqueId(), null, null, player);
 			if(!result.succeeded) {
@@ -893,17 +853,13 @@ public class GriefPreventionLight extends JavaPlugin {
 				sendMessage(player, TextMode.Success, Messages.CreateClaimSuccess);
 
 				//link to a video demo of land claiming, based on world type
-				if(GriefPreventionLight.instance.creativeRulesApply(player.getLocation())) {
-					sendMessage(player, TextMode.Instr, Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				} else if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
+				if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
 				Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
 				Visualization.Apply(player, visualization);
 				playerData.claimResizing = null;
 				playerData.lastShovelLocation = null;
-
-				this.autoExtendClaim(result.claim);
 			}
 
 			return true;
@@ -913,9 +869,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		if(cmd.getName().equalsIgnoreCase("extendclaim") && player != null) {
 			if(args.length < 1) {
 				//link to a video demo of land claiming, based on world type
-				if(GriefPreventionLight.instance.creativeRulesApply(player.getLocation())) {
-					sendMessage(player, TextMode.Instr, Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				} else if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
+				if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
 				return false;
@@ -926,9 +880,7 @@ public class GriefPreventionLight extends JavaPlugin {
 				amount = Integer.parseInt(args[0]);
 			} catch(NumberFormatException e) {
 				//link to a video demo of land claiming, based on world type
-				if(GriefPreventionLight.instance.creativeRulesApply(player.getLocation())) {
-					sendMessage(player, TextMode.Instr, Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				} else if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
+				if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
 				return false;
@@ -942,7 +894,7 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			//must be standing in a land claim
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 			if(claim == null) {
 				sendMessage(player, TextMode.Err, Messages.StandInClaimToResize);
 				return true;
@@ -967,14 +919,11 @@ public class GriefPreventionLight extends JavaPlugin {
 				return true;
 			}
 
-			Location lc = claim.getLesserBoundaryCorner();
-			Location gc = claim.getGreaterBoundaryCorner();
-			int newx1 = lc.getBlockX();
-			int newx2 = gc.getBlockX();
-			int newy1 = lc.getBlockY();
-			int newy2 = gc.getBlockY();
-			int newz1 = lc.getBlockZ();
-			int newz2 = gc.getBlockZ();
+			int newx1 = claim.lesserBoundaryCorner.x;
+			int newz1 = claim.lesserBoundaryCorner.z;
+
+			int newx2 = claim.greaterBoundaryCorner.x;
+			int newz2 = claim.greaterBoundaryCorner.z;
 
 			//if changing Z only
 			if(Math.abs(direction.getX()) < .3) {
@@ -1011,7 +960,7 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			//attempt resize
 			playerData.claimResizing = claim;
-			this.dataStore.resizeClaimWithChecks(player, playerData, newx1, newx2, newy1, newy2, newz1, newz2);
+			this.dataStore.resizeClaimWithChecks(player, playerData, newx1, newx2, newz1, newz2);
 			playerData.claimResizing = null;
 
 			return true;
@@ -1083,45 +1032,6 @@ public class GriefPreventionLight extends JavaPlugin {
 			return true;
 		}
 
-		//restore nature
-		else if(cmd.getName().equalsIgnoreCase("restorenature") && player != null) {
-			//change shovel mode
-			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			playerData.shovelMode = ShovelMode.RestoreNature;
-			sendMessage(player, TextMode.Instr, Messages.RestoreNatureActivate);
-			return true;
-		}
-
-		//restore nature aggressive mode
-		else if(cmd.getName().equalsIgnoreCase("restorenatureaggressive") && player != null) {
-			//change shovel mode
-			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			playerData.shovelMode = ShovelMode.RestoreNatureAggressive;
-			sendMessage(player, TextMode.Warn, Messages.RestoreNatureAggressiveActivate);
-			return true;
-		}
-
-		//restore nature fill mode
-		else if(cmd.getName().equalsIgnoreCase("restorenaturefill") && player != null) {
-			//change shovel mode
-			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			playerData.shovelMode = ShovelMode.RestoreNatureFill;
-
-			//set radius based on arguments
-			playerData.fillRadius = 2;
-			if(args.length > 0) {
-				try {
-					playerData.fillRadius = Integer.parseInt(args[0]);
-				} catch(Exception exception) {
-				}
-			}
-
-			if(playerData.fillRadius < 0) playerData.fillRadius = 2;
-
-			sendMessage(player, TextMode.Success, Messages.FillModeActive, String.valueOf(playerData.fillRadius));
-			return true;
-		}
-
 		//trust <player>
 		else if(cmd.getName().equalsIgnoreCase("trust") && player != null) {
 			//requires exactly one parameter, the other player's name
@@ -1136,7 +1046,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		//transferclaim <player>
 		else if(cmd.getName().equalsIgnoreCase("transferclaim") && player != null) {
 			//which claim is the user in?
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true, null);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 			if(claim == null) {
 				sendMessage(player, TextMode.Instr, Messages.TransferClaimMissing);
 				return true;
@@ -1171,14 +1081,14 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			//confirm
 			sendMessage(player, TextMode.Success, Messages.TransferSuccess);
-			GriefPreventionLight.AddLogEntry(player.getName() + " transferred a claim at " + GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()) + " to " + ownerName + ".", CustomLogEntryTypes.AdminActivity);
+			GriefPreventionLight.AddLogEntry(player.getName() + " transferred a claim at " + claim.world.getName() + claim.lesserBoundaryCorner.toString() + " to " + ownerName + ".", CustomLogEntryTypes.AdminActivity);
 
 			return true;
 		}
 
 		//trustlist
 		else if(cmd.getName().equalsIgnoreCase("trustlist") && player != null) {
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true, null);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 
 			//if no claim here, error message
 			if(claim == null) {
@@ -1259,7 +1169,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			if(args.length != 1) return false;
 
 			//determine which claim the player is standing in
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 
 			//bracket any permissions
 			if(args[0].contains(".") && !args[0].startsWith("[") && !args[0].endsWith("]")) {
@@ -1437,7 +1347,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		//restrictsubclaim
 		else if(cmd.getName().equalsIgnoreCase("restrictsubclaim") && player != null) {
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 			if(claim == null || claim.parent == null) {
 				sendMessage(player, TextMode.Err, Messages.StandInSubclaim);
 				return true;
@@ -1633,7 +1543,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		//deleteclaim
 		else if(cmd.getName().equalsIgnoreCase("deleteclaim") && player != null) {
 			//determine which claim the player is standing in
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 
 			if(claim == null) {
 				sendMessage(player, TextMode.Err, Messages.DeleteClaimMissing);
@@ -1645,16 +1555,10 @@ public class GriefPreventionLight extends JavaPlugin {
 						sendMessage(player, TextMode.Warn, Messages.DeletionSubdivisionWarning);
 						playerData.warnedAboutMajorDeletion = true;
 					} else {
-						claim.removeSurfaceFluids(null);
 						this.dataStore.deleteClaim(claim, true, true);
 
-						//if in a creative mode world, /restorenature the claim
-						if(GriefPreventionLight.instance.creativeRulesApply(claim.getLesserBoundaryCorner()) || GriefPreventionLight.instance.config_claims_survivalAutoNatureRestoration) {
-							GriefPreventionLight.instance.restoreClaim(claim, 0);
-						}
-
 						sendMessage(player, TextMode.Success, Messages.DeleteSuccess);
-						GriefPreventionLight.AddLogEntry(player.getName() + " deleted " + claim.getOwnerName() + "'s claim at " + GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()), CustomLogEntryTypes.AdminActivity);
+						GriefPreventionLight.AddLogEntry(player.getName() + " deleted " + claim.getOwnerName() + "'s claim at " + claim.world.getName() + claim.lesserBoundaryCorner.toString(), CustomLogEntryTypes.AdminActivity);
 
 						//revert any current visualization
 						Visualization.Revert(player);
@@ -1669,7 +1573,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			return true;
 		} else if(cmd.getName().equalsIgnoreCase("claimexplosions") && player != null) {
 			//determine which claim the player is standing in
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 
 			if(claim == null) {
 				sendMessage(player, TextMode.Err, Messages.DeleteClaimMissing);
@@ -1819,7 +1723,7 @@ public class GriefPreventionLight extends JavaPlugin {
 				sendMessage(player, TextMode.Instr, Messages.ClaimsListHeader);
 				for(int i = 0; i < playerData.getClaims().size(); i++) {
 					Claim claim = playerData.getClaims().get(i);
-					GriefPreventionLight.sendMessage(player, TextMode.Instr, getfriendlyLocationString(claim.getLesserBoundaryCorner()) + this.dataStore.getMessage(Messages.ContinueBlockMath, String.valueOf(claim.getArea())));
+					GriefPreventionLight.sendMessage(player, TextMode.Instr, claim.world.getName() + claim.lesserBoundaryCorner + this.dataStore.getMessage(Messages.ContinueBlockMath, String.valueOf(claim.getArea())));
 				}
 
 				sendMessage(player, TextMode.Instr, Messages.EndBlockMath, String.valueOf(playerData.getRemainingClaimBlocks()));
@@ -1845,7 +1749,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			if(claims.size() > 0) {
 				sendMessage(player, TextMode.Instr, Messages.ClaimsListHeader);
 				for(Claim claim : claims) {
-					GriefPreventionLight.sendMessage(player, TextMode.Instr, getfriendlyLocationString(claim.getLesserBoundaryCorner()));
+					GriefPreventionLight.sendMessage(player, TextMode.Instr, claim.world.getName() + claim.lesserBoundaryCorner);
 				}
 			}
 
@@ -2016,7 +1920,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			//FEATURE: empower players who get "stuck" in an area where they don't have permission to build to save themselves
 
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 
 			//if another /trapped is pending, ignore this slash command
 			if(playerData.pendingTrapped) {
@@ -2086,7 +1990,7 @@ public class GriefPreventionLight extends JavaPlugin {
 				return false;
 			}
 
-			Claim defenderClaim = this.dataStore.getClaimAt(defender.getLocation(), false, null);
+			Claim defenderClaim = this.dataStore.getClaimAt(defender.getLocation(), null);
 
 			return true;
 		} else if(cmd.getName().equalsIgnoreCase("softmute")) {
@@ -2315,15 +2219,11 @@ public class GriefPreventionLight extends JavaPlugin {
 		}
 	}
 
-	public static String getfriendlyLocationString(Location location) {
-		return location.getWorld().getName() + ": x" + location.getBlockX() + ", z" + location.getBlockZ();
-	}
-
 	private boolean abandonClaimHandler(Player player, boolean deleteTopLevelClaim) {
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 
 		//which claim is being abandoned?
-		Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+		Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 		if(claim == null) {
 			sendMessage(player, TextMode.Instr, Messages.AbandonClaimMissing);
 		}
@@ -2339,15 +2239,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			return true;
 		} else {
 			//delete it
-			claim.removeSurfaceFluids(null);
 			this.dataStore.deleteClaim(claim, true, false);
-
-			//if in a creative mode world, restore the claim area
-			if(GriefPreventionLight.instance.creativeRulesApply(claim.getLesserBoundaryCorner())) {
-				GriefPreventionLight.AddLogEntry(player.getName() + " abandoned a claim @ " + GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()));
-				sendMessage(player, TextMode.Warn, Messages.UnclaimCleanupWarning);
-				GriefPreventionLight.instance.restoreClaim(claim, 20L * 60 * 2);
-			}
 
 			//adjust claim blocks when abandoning a top level claim
 			if(this.config_claims_abandonReturnRatio != 1.0D && claim.parent == null && claim.ownerID.equals(playerData.playerID)) {
@@ -2371,7 +2263,7 @@ public class GriefPreventionLight extends JavaPlugin {
 	//helper method keeps the trust commands consistent and eliminates duplicate code
 	private void handleTrustCommand(Player player, ClaimPermission permissionLevel, String recipientName) {
 		//determine which claim the player is standing in
-		Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+		Claim claim = this.dataStore.getClaimAt(player.getLocation(), null);
 
 		//validate player or group argument
 		String permission = null;
@@ -2655,11 +2547,12 @@ public class GriefPreventionLight extends JavaPlugin {
 		Location candidateLocation = player.getLocation();
 		while(true) {
 			Claim claim = null;
-			claim = GriefPreventionLight.instance.dataStore.getClaimAt(candidateLocation, false, null);
+			claim = GriefPreventionLight.instance.dataStore.getClaimAt(candidateLocation, null);
 
 			//if there's a claim here, keep looking
 			if(claim != null) {
-				candidateLocation = new Location(claim.lesserBoundaryCorner.getWorld(), claim.lesserBoundaryCorner.getBlockX() - 1, claim.lesserBoundaryCorner.getBlockY(), claim.lesserBoundaryCorner.getBlockZ() - 1);
+				// TODO
+				candidateLocation = new Location(claim.world, claim.lesserBoundaryCorner.x - 1, 64, claim.lesserBoundaryCorner.z - 1);
 				continue;
 			}
 
@@ -2721,13 +2614,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		return mode != null && mode != ClaimsMode.Disabled;
 	}
 
-	//determines whether creative anti-grief rules apply at a location
-	boolean creativeRulesApply(Location location) {
-		if(!this.config_creativeWorldsExist) return false;
-
-		return this.config_claims_worldModes.get((location.getWorld())) == ClaimsMode.Creative;
-	}
-
 	public String allowBuild(Player player, Location location) {
 		return this.allowBuild(player, location, location.getBlock().getType());
 	}
@@ -2736,32 +2622,10 @@ public class GriefPreventionLight extends JavaPlugin {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		Claim claim = this.dataStore.getClaimAt(location, false, playerData.lastClaim);
+		Claim claim = this.dataStore.getClaimAt(location, playerData.lastClaim);
 
 		//exception: administrators in ignore claims mode
 		if(playerData.ignoreClaims) return null;
-
-		//wilderness rules
-		if(claim == null) {
-			//no building in the wilderness in creative mode
-			if(this.creativeRulesApply(location) || this.config_claims_worldModes.get(location.getWorld()) == ClaimsMode.SurvivalRequiringClaims) {
-				//exception: when chest claims are enabled, players who have zero land claims and are placing a chest
-				if(material != Material.CHEST || playerData.getClaims().size() > 0 || GriefPreventionLight.instance.config_claims_automaticClaimsForNewPlayersRadius == -1) {
-					String reason = this.dataStore.getMessage(Messages.NoBuildOutsideClaims);
-					if(player.hasPermission("griefprevention.ignoreclaims"))
-						reason += "  " + this.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
-					reason += "  " + this.dataStore.getMessage(Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-					return reason;
-				} else {
-					return null;
-				}
-			}
-
-			//but it's fine in survival mode
-			else {
-				return null;
-			}
-		}
 
 		//if not in the wilderness, then apply claim rules (permissions, etc)
 		else {
@@ -2779,42 +2643,25 @@ public class GriefPreventionLight extends JavaPlugin {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		Claim claim = this.dataStore.getClaimAt(location, false, playerData.lastClaim);
+		Claim claim = this.dataStore.getClaimAt(location, playerData.lastClaim);
 
 		//exception: administrators in ignore claims mode
-		if(playerData.ignoreClaims) return null;
+		if(playerData.ignoreClaims || claim == null) return null;
 
-		//wilderness rules
-		if(claim == null) {
-			//no building in the wilderness in creative mode
-			if(this.creativeRulesApply(location) || this.config_claims_worldModes.get(location.getWorld()) == ClaimsMode.SurvivalRequiringClaims) {
-				String reason = this.dataStore.getMessage(Messages.NoBuildOutsideClaims);
-				if(player.hasPermission("griefprevention.ignoreclaims"))
-					reason += "  " + this.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
-				reason += "  " + this.dataStore.getMessage(Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-				return reason;
+		//cache the claim for later reference
+		playerData.lastClaim = claim;
+
+		//if not in the wilderness, then apply claim rules (permissions, etc)
+		String cancel = claim.allowBreak(player, block.getType());
+		if(cancel != null && breakEvent != null) {
+			PreventBlockBreakEvent preventionEvent = new PreventBlockBreakEvent(breakEvent);
+			Bukkit.getPluginManager().callEvent(preventionEvent);
+			if(preventionEvent.isCancelled()) {
+				cancel = null;
 			}
-
-			//but it's fine in survival mode
-			else {
-				return null;
-			}
-		} else {
-			//cache the claim for later reference
-			playerData.lastClaim = claim;
-
-			//if not in the wilderness, then apply claim rules (permissions, etc)
-			String cancel = claim.allowBreak(player, block.getType());
-			if(cancel != null && breakEvent != null) {
-				PreventBlockBreakEvent preventionEvent = new PreventBlockBreakEvent(breakEvent);
-				Bukkit.getPluginManager().callEvent(preventionEvent);
-				if(preventionEvent.isCancelled()) {
-					cancel = null;
-				}
-			}
-
-			return cancel;
 		}
+
+		return cancel;
 	}
 
 	//restores nature in multiple chunks, as described by a claim instance
@@ -2852,11 +2699,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		//create task to process those data in another thread
 		Location lesserBoundaryCorner = chunk.getBlock(0, 0, 0).getLocation();
 		Location greaterBoundaryCorner = chunk.getBlock(15, 0, 15).getLocation();
-
-		//create task
-		//when done processing, this task will create a main thread task to actually update the world with processing results
-		RestoreNatureProcessingTask task = new RestoreNatureProcessingTask(snapshots, miny, chunk.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome(), lesserBoundaryCorner, greaterBoundaryCorner, this.getSeaLevel(chunk.getWorld()), aggressiveMode, GriefPreventionLight.instance.creativeRulesApply(lesserBoundaryCorner), playerReceivingVisualization);
-		GriefPreventionLight.instance.getServer().getScheduler().runTaskLaterAsynchronously(GriefPreventionLight.instance, task, delayInTicks);
 	}
 
 	private Set<Material> parseMaterialListFromConfig(List<String> stringsToParse) {
@@ -2914,23 +2756,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		}
 
 		return false;
-	}
-
-	void autoExtendClaim(Claim newClaim) {
-		//auto-extend it downward to cover anything already built underground
-		Location lesserCorner = newClaim.getLesserBoundaryCorner();
-		Location greaterCorner = newClaim.getGreaterBoundaryCorner();
-		World world = lesserCorner.getWorld();
-		ArrayList<ChunkSnapshot> snapshots = new ArrayList<>();
-		for(int chunkx = lesserCorner.getBlockX() / 16; chunkx <= greaterCorner.getBlockX() / 16; chunkx++) {
-			for(int chunkz = lesserCorner.getBlockZ() / 16; chunkz <= greaterCorner.getBlockZ() / 16; chunkz++) {
-				if(world.isChunkLoaded(chunkx, chunkz)) {
-					snapshots.add(world.getChunkAt(chunkx, chunkz).getChunkSnapshot(true, true, false));
-				}
-			}
-		}
-
-		Bukkit.getScheduler().runTaskAsynchronously(GriefPreventionLight.instance, new AutoExtendClaimTask(newClaim, snapshots, world.getEnvironment()));
 	}
 
 	public static boolean isNewToServer(Player player) {

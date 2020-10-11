@@ -280,7 +280,7 @@ public class FlatFileDataStore extends DataStore {
 						//if this is the first claim loaded from this file, it's the top level claim
 						if(topLevelClaim == null) {
 							//instantiate
-							topLevelClaim = new Claim(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builderNames, containerNames, accessorNames, managerNames, claimID);
+							topLevelClaim = new Claim(new Coordinate(lesserBoundaryCorner.getBlockX(), lesserBoundaryCorner.getBlockZ()), new Coordinate(greaterBoundaryCorner.getBlockX(), greaterBoundaryCorner.getBlockZ()), ownerID, builderNames, containerNames, accessorNames, managerNames, claimID);
 
 							topLevelClaim.modifiedDate = new Date(files[i].lastModified());
 							this.addClaim(topLevelClaim, false);
@@ -288,7 +288,7 @@ public class FlatFileDataStore extends DataStore {
 
 						//otherwise there's already a top level claim, so this must be a subdivision of that top level claim
 						else {
-							Claim subdivision = new Claim(lesserBoundaryCorner, greaterBoundaryCorner, null, builderNames, containerNames, accessorNames, managerNames, null);
+							Claim subdivision = new Claim(new Coordinate(lesserBoundaryCorner.getBlockX(), lesserBoundaryCorner.getBlockZ()), new Coordinate(greaterBoundaryCorner.getBlockX(), greaterBoundaryCorner.getBlockZ()), null, builderNames, containerNames, accessorNames, managerNames, null);
 
 							subdivision.modifiedDate = new Date(files[i].lastModified());
 							subdivision.parent = topLevelClaim;
@@ -433,7 +433,7 @@ public class FlatFileDataStore extends DataStore {
 		out_parentID.add(yaml.getLong("Parent Claim ID", -1L));
 
 		//instantiate
-		claim = new Claim(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builders, containers, accessors, managers, inheritNothing, claimID);
+		claim = new Claim(new Coordinate(lesserBoundaryCorner.getBlockX(), lesserBoundaryCorner.getBlockZ()), new Coordinate(greaterBoundaryCorner.getBlockX(), greaterBoundaryCorner.getBlockZ()), ownerID, builders, containers, accessors, managers, inheritNothing, claimID);
 		claim.modifiedDate = new Date(lastModifiedDate);
 		claim.id = claimID;
 
@@ -444,8 +444,8 @@ public class FlatFileDataStore extends DataStore {
 		YamlConfiguration yaml = new YamlConfiguration();
 
 		//boundaries
-		yaml.set("Lesser Boundary Corner", this.locationToString(claim.lesserBoundaryCorner));
-		yaml.set("Greater Boundary Corner", this.locationToString(claim.greaterBoundaryCorner));
+		yaml.set("Lesser Boundary Corner", this.locationToString(new Location(claim.world, claim.lesserBoundaryCorner.x, 0, claim.lesserBoundaryCorner.z)));
+		yaml.set("Greater Boundary Corner", this.locationToString(new Location(claim.world, claim.greaterBoundaryCorner.x, 255, claim.greaterBoundaryCorner.z)));
 
 		//owner
 		String ownerID = "";

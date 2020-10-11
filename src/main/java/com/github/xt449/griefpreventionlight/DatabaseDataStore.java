@@ -296,7 +296,7 @@ public class DatabaseDataStore extends DataStore {
 				String managersString = results.getString("managers");
 				List<String> managerNames = Arrays.asList(managersString.split(";"));
 				managerNames = this.convertNameListToUUIDList(managerNames);
-				Claim claim = new Claim(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builderNames, containerNames, accessorNames, managerNames, inheritNothing, claimID);
+				Claim claim = new Claim(Coordinate.fromLocation(lesserBoundaryCorner), Coordinate.fromLocation(greaterBoundaryCorner), ownerID, builderNames, containerNames, accessorNames, managerNames, inheritNothing, claimID);
 
 				if(removeClaim) {
 					claimsToRemove.add(claim);
@@ -316,11 +316,11 @@ public class DatabaseDataStore extends DataStore {
 		//add subdivisions to their parent claims
 		for(Claim childClaim : subdivisionsToLoad) {
 			//find top level claim parent
-			Claim topLevelClaim = this.getClaimAt(childClaim.getLesserBoundaryCorner(), true, null);
+			Claim topLevelClaim = this.getClaimAt(childClaim.lesserBoundaryCorner.toLocation(childClaim.world), null);
 
 			if(topLevelClaim == null) {
 				claimsToRemove.add(childClaim);
-				GriefPreventionLight.AddLogEntry("Removing orphaned claim subdivision: " + childClaim.getLesserBoundaryCorner().toString());
+				GriefPreventionLight.AddLogEntry("Removing orphaned claim subdivision: " + childClaim.world.getName() + childClaim.lesserBoundaryCorner.toString());
 				continue;
 			}
 
@@ -355,15 +355,15 @@ public class DatabaseDataStore extends DataStore {
 			//write claim data to the database
 			this.writeClaimData(claim);
 		} catch(SQLException e) {
-			GriefPreventionLight.AddLogEntry("Unable to save data for claim at " + this.locationToString(claim.lesserBoundaryCorner) + ".  Details:");
+			GriefPreventionLight.AddLogEntry("Unable to save data for claim at " + claim.world.getName() + claim.lesserBoundaryCorner + ".  Details:");
 			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}
 
 	//actually writes claim data to the database
 	synchronized private void writeClaimData(Claim claim) throws SQLException {
-		String lesserCornerString = this.locationToString(claim.getLesserBoundaryCorner());
-		String greaterCornerString = this.locationToString(claim.getGreaterBoundaryCorner());
+		String lesserCornerString = claim.world.getName() + claim.lesserBoundaryCorner;
+		String greaterCornerString = claim.world.getName() + claim.greaterBoundaryCorner;
 		String owner = "";
 		if(claim.ownerID != null) owner = claim.ownerID.toString();
 
@@ -395,7 +395,7 @@ public class DatabaseDataStore extends DataStore {
 			insertStmt.setLong(10, parentId);
 			insertStmt.executeUpdate();
 		} catch(SQLException e) {
-			GriefPreventionLight.AddLogEntry("Unable to save data for claim at " + this.locationToString(claim.lesserBoundaryCorner) + ".  Details:");
+			GriefPreventionLight.AddLogEntry("Unable to save data for claim at " + claim.world.getName() + claim.lesserBoundaryCorner + ".  Details:");
 			GriefPreventionLight.AddLogEntry(e.getMessage());
 		}
 	}

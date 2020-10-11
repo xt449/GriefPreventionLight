@@ -87,9 +87,6 @@ public abstract class DataStore {
 	//list of UUIDs which are soft-muted
 	ConcurrentHashMap<UUID, Boolean> softMuteMap = new ConcurrentHashMap<>();
 
-	//world guard reference, if available
-	private WorldGuardWrapper worldGuard = null;
-
 	protected int getSchemaVersion() {
 		if(this.currentSchemaVersion >= 0) {
 			return this.currentSchemaVersion;
@@ -154,16 +151,6 @@ public abstract class DataStore {
 
 		//make a note of the data store schema version
 		this.setSchemaVersion(latestSchemaVersion);
-
-		//try to hook into world guard
-		try {
-			this.worldGuard = new WorldGuardWrapper();
-			GriefPreventionLight.AddLogEntry("Successfully hooked into WorldGuard.");
-		}
-		//if failed, world guard compat features will just be disabled.
-		catch(ClassNotFoundException exception) {
-		} catch(NoClassDefFoundError exception) {
-		}
 	}
 
 	private void loadSoftMutes() {
@@ -426,8 +413,6 @@ public abstract class DataStore {
 		stringBuilder.append(locationStringDelimiter);
 		stringBuilder.append(location.getBlockX());
 		stringBuilder.append(locationStringDelimiter);
-		stringBuilder.append(location.getBlockY());
-		stringBuilder.append(locationStringDelimiter);
 		stringBuilder.append(location.getBlockZ());
 
 		return stringBuilder.toString();
@@ -598,9 +583,9 @@ public abstract class DataStore {
 	//gets the claim at a specific location
 	//ignoreHeight = TRUE means that a location UNDER an existing claim will return the claim
 	//cachedClaim can be NULL, but will help performance if you have a reasonable guess about which claim the location is in
-	synchronized public Claim getClaimAt(Location location, boolean ignoreHeight, Claim cachedClaim) {
+	synchronized public Claim getClaimAt(Location location, Claim cachedClaim) {
 		//check cachedClaim guess first.  if it's in the datastore and the location is inside it, we're done
-		if(cachedClaim != null && cachedClaim.inDataStore && cachedClaim.contains(location, ignoreHeight, true))
+		if(cachedClaim != null && cachedClaim.inDataStore && cachedClaim.contains(location, true))
 			return cachedClaim;
 
 		//find a top level claim
@@ -609,12 +594,12 @@ public abstract class DataStore {
 		if(claimsInChunk == null) return null;
 
 		for(Claim claim : claimsInChunk) {
-			if(claim.inDataStore && claim.contains(location, ignoreHeight, false)) {
+			if(claim.inDataStore && claim.contains(location, false)) {
 				//when we find a top level claim, if the location is in one of its subdivisions,
 				//return the SUBDIVISION, not the top level claim
 				for(int j = 0; j < claim.children.size(); j++) {
 					Claim subdivision = claim.children.get(j);
-					if(subdivision.inDataStore && subdivision.contains(location, ignoreHeight, false))
+					if(subdivision.inDataStore && subdivision.contains(location, false))
 						return subdivision;
 				}
 
@@ -662,15 +647,13 @@ public abstract class DataStore {
 	}
 
 	public static ArrayList<Long> getChunkHashes(Claim claim) {
-		return getChunkHashes(claim.getLesserBoundaryCorner(), claim.getGreaterBoundaryCorner());
-	}
-
-	public static ArrayList<Long> getChunkHashes(Location min, Location max) {
 		ArrayList<Long> hashes = new ArrayList<>();
-		int smallX = min.getBlockX() >> 4;
-		int smallZ = min.getBlockZ() >> 4;
-		int largeX = max.getBlockX() >> 4;
-		int largeZ = max.getBlockZ() >> 4;
+
+		int smallX = claim.lesserBoundaryCorner.x >> 4;
+		int smallZ = claim.lesserBoundaryCorner.z >> 4;
+		int largeX = claim.greaterBoundaryCorner.x >> 4;
+		int largeZ = claim.greaterBoundaryCorner.z >> 4;
+
 
 		for(int x = smallX; x <= largeX; x++) {
 			for(int z = smallZ; z <= largeZ; z++) {
@@ -684,8 +667,8 @@ public abstract class DataStore {
 	/*
 	 * Creates a claim and flags it as being new....throwing a create claim event;
 	 */
-	synchronized public CreateClaimResult createClaim(World world, int x1, int x2, int y1, int y2, int z1, int z2, UUID ownerID, Claim parent, Long id, Player creatingPlayer) {
-		return createClaim(world, x1, x2, y1, y2, z1, z2, ownerID, parent, id, creatingPlayer, false);
+	synchronized public CreateClaimResult createClaim(World world, int x1, int x2, int z1, int z2, UUID ownerID, Claim parent, Long id, Player creatingPlayer) {
+		return createClaim(world, x1, x2, z1, z2, ownerID, parent, id, creatingPlayer, false);
 	}
 
 	//creates a claim.
@@ -699,13 +682,10 @@ public abstract class DataStore {
 	//does NOT check a player has permission to create a claim, or enough claim blocks.
 	//does NOT check minimum claim size constraints
 	//does NOT visualize the new claim for any players
-	synchronized public CreateClaimResult createClaim(World world, int x1, int x2, int y1, int y2, int z1, int z2, UUID ownerID, Claim parent, Long id, Player creatingPlayer, boolean dryRun) {
+	synchronized public CreateClaimResult createClaim(World world, int x1, int x2, int z1, int z2, UUID ownerID, Claim parent, Long id, Player creatingPlayer, boolean dryRun) {
 		CreateClaimResult result = new CreateClaimResult();
 
-		int smallx, bigx, smally, bigy, smallz, bigz;
-
-		if(y1 < GriefPreventionLight.instance.config_claims_maxDepth) y1 = GriefPreventionLight.instance.config_claims_maxDepth;
-		if(y2 < GriefPreventionLight.instance.config_claims_maxDepth) y2 = GriefPreventionLight.instance.config_claims_maxDepth;
+		int smallx, bigx, smallz, bigz;
 
 		//determine small versus big inputs
 		if(x1 < x2) {
@@ -714,14 +694,6 @@ public abstract class DataStore {
 		} else {
 			smallx = x2;
 			bigx = x1;
-		}
-
-		if(y1 < y2) {
-			smally = y1;
-			bigy = y2;
-		} else {
-			smally = y2;
-			bigy = y1;
 		}
 
 		if(z1 < z2) {
@@ -733,8 +705,8 @@ public abstract class DataStore {
 		}
 
 		if(parent != null) {
-			Location lesser = parent.getLesserBoundaryCorner();
-			Location greater = parent.getGreaterBoundaryCorner();
+			Coordinate lesser = parent.lesserBoundaryCorner;
+			Coordinate greater = parent.greaterBoundaryCorner;
 			if(smallx < lesser.getX() || smallz < lesser.getZ() || bigx > greater.getX() || bigz > greater.getZ()) {
 				result.succeeded = false;
 				result.claim = parent;
@@ -742,15 +714,10 @@ public abstract class DataStore {
 			}
 		}
 
-		//creative mode claims always go to bedrock
-		if(GriefPreventionLight.instance.config_claims_worldModes.get(world) == ClaimsMode.Creative) {
-			smally = 0;
-		}
-
 		//create a new claim instance (but don't save it, yet)
 		Claim newClaim = new Claim(
-				new Location(world, smallx, smally, smallz),
-				new Location(world, bigx, bigy, bigz),
+				new Coordinate(smallx, smallz),
+				new Coordinate(bigx, bigz),
 				ownerID,
 				new ArrayList<>(),
 				new ArrayList<>(),
@@ -774,15 +741,6 @@ public abstract class DataStore {
 				//result = fail, return conflicting claim
 				result.succeeded = false;
 				result.claim = otherClaim;
-				return result;
-			}
-		}
-
-		//if worldguard is installed, also prevent claims from overlapping any worldguard regions
-		if(GriefPreventionLight.instance.config_claims_respectWorldGuard && this.worldGuard != null && creatingPlayer != null) {
-			if(!this.worldGuard.canBuild(newClaim.lesserBoundaryCorner, newClaim.greaterBoundaryCorner, creatingPlayer)) {
-				result.succeeded = false;
-				result.claim = null;
 				return result;
 			}
 		}
@@ -860,59 +818,27 @@ public abstract class DataStore {
 
 	abstract void overrideSavePlayerData(UUID playerID, PlayerData playerData);
 
-	//extends a claim to a new depth
-	//respects the max depth config variable
-	synchronized public void extendClaim(Claim claim, int newDepth) {
-		if(newDepth < GriefPreventionLight.instance.config_claims_maxDepth)
-			newDepth = GriefPreventionLight.instance.config_claims_maxDepth;
-
-		if(claim.parent != null) claim = claim.parent;
-
-		//call event and return if event got cancelled
-		ClaimExtendEvent event = new ClaimExtendEvent(claim, newDepth);
-		Bukkit.getPluginManager().callEvent(event);
-		if(event.isCancelled()) return;
-
-		//adjust to new depth
-		claim.lesserBoundaryCorner.setY(newDepth);
-		claim.greaterBoundaryCorner.setY(newDepth);
-		for(Claim subdivision : claim.children) {
-			subdivision.lesserBoundaryCorner.setY(newDepth);
-			subdivision.greaterBoundaryCorner.setY(newDepth);
-			this.saveClaim(subdivision);
-		}
-
-		//save changes
-		this.saveClaim(claim);
-	}
-
 	//deletes all claims owned by a player
 	synchronized public void deleteClaimsForPlayer(UUID playerID, boolean releasePets) {
 		//make a list of the player's claims
 		ArrayList<Claim> claimsToDelete = new ArrayList<>();
 		for(Claim claim : this.claims) {
-			if((playerID == claim.ownerID || (playerID != null && playerID.equals(claim.ownerID))))
+			if(Objects.equals(playerID, claim.ownerID))
 				claimsToDelete.add(claim);
 		}
 
 		//delete them one by one
 		for(Claim claim : claimsToDelete) {
-			claim.removeSurfaceFluids(null);
 
 			this.deleteClaim(claim, releasePets);
-
-			//if in a creative mode world, delete the claim
-			if(GriefPreventionLight.instance.creativeRulesApply(claim.getLesserBoundaryCorner())) {
-				GriefPreventionLight.instance.restoreClaim(claim, 0);
-			}
 		}
 	}
 
 	//tries to resize a claim
 	//see CreateClaim() for details on return value
-	synchronized public CreateClaimResult resizeClaim(Claim claim, int newx1, int newx2, int newy1, int newy2, int newz1, int newz2, Player resizingPlayer) {
+	synchronized public CreateClaimResult resizeClaim(Claim claim, int newx1, int newx2, int newz1, int newz2, Player resizingPlayer) {
 		//try to create this new claim, ignoring the original when checking for overlap
-		CreateClaimResult result = this.createClaim(claim.getLesserBoundaryCorner().getWorld(), newx1, newx2, newy1, newy2, newz1, newz2, claim.ownerID, claim.parent, claim.id, resizingPlayer, true);
+		CreateClaimResult result = this.createClaim(claim.world, newx1, newx2, newz1, newz2, claim.ownerID, claim.parent, claim.id, resizingPlayer, true);
 
 		//if succeeded
 		if(result.succeeded) {
@@ -930,21 +856,21 @@ public abstract class DataStore {
 		return result;
 	}
 
-	void resizeClaimWithChecks(Player player, PlayerData playerData, int newx1, int newx2, int newy1, int newy2, int newz1, int newz2) {
+	void resizeClaimWithChecks(Player player, PlayerData playerData, int newx1, int newx2, int newz1, int newz2) {
 		//for top level claims, apply size rules and claim blocks requirement
 		if(playerData.claimResizing.parent == null) {
 			//measure new claim, apply size rules
 			int newWidth = (Math.abs(newx1 - newx2) + 1);
-			int newHeight = (Math.abs(newz1 - newz2) + 1);
-			boolean smaller = newWidth < playerData.claimResizing.getWidth() || newHeight < playerData.claimResizing.getHeight();
+			int newLength = (Math.abs(newz1 - newz2) + 1);
+			boolean smaller = newWidth < playerData.claimResizing.getWidth() || newLength < playerData.claimResizing.getLength();
 
 			if(!player.hasPermission("griefprevention.adminclaims") && !playerData.claimResizing.isAdminClaim() && smaller) {
-				if(newWidth < GriefPreventionLight.instance.config_claims_minWidth || newHeight < GriefPreventionLight.instance.config_claims_minWidth) {
+				if(newWidth < GriefPreventionLight.instance.config_claims_minWidth || newLength < GriefPreventionLight.instance.config_claims_minWidth) {
 					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeClaimTooNarrow, String.valueOf(GriefPreventionLight.instance.config_claims_minWidth));
 					return;
 				}
 
-				int newArea = newWidth * newHeight;
+				int newArea = newWidth * newLength;
 				if(newArea < GriefPreventionLight.instance.config_claims_minArea) {
 					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeClaimInsufficientArea, String.valueOf(GriefPreventionLight.instance.config_claims_minArea));
 					return;
@@ -953,7 +879,7 @@ public abstract class DataStore {
 
 			//make sure player has enough blocks to make up the difference
 			if(!playerData.claimResizing.isAdminClaim() && player.getName().equals(playerData.claimResizing.getOwnerName())) {
-				int newArea = newWidth * newHeight;
+				int newArea = newWidth * newLength;
 				int blocksRemainingAfter = playerData.getRemainingClaimBlocks() + playerData.claimResizing.getArea() - newArea;
 
 				if(blocksRemainingAfter < 0) {
@@ -966,9 +892,9 @@ public abstract class DataStore {
 
 		Claim oldClaim = playerData.claimResizing;
 		Claim newClaim = new Claim(oldClaim);
-		World world = newClaim.getLesserBoundaryCorner().getWorld();
-		newClaim.lesserBoundaryCorner = new Location(world, newx1, newy1, newz1);
-		newClaim.greaterBoundaryCorner = new Location(world, newx2, newy2, newz2);
+		World world = newClaim.world;
+		newClaim.lesserBoundaryCorner = new Coordinate(newx1, newz1);
+		newClaim.greaterBoundaryCorner = new Coordinate(newx2, newz2);
 
 		//call event here to check if it has been cancelled
 		ClaimModifiedEvent event = new ClaimModifiedEvent(oldClaim, newClaim, player);
@@ -982,16 +908,13 @@ public abstract class DataStore {
 		boolean smaller = false;
 		if(oldClaim.parent == null) {
 			//if the new claim is smaller
-			if(!newClaim.contains(oldClaim.getLesserBoundaryCorner(), true, false) || !newClaim.contains(oldClaim.getGreaterBoundaryCorner(), true, false)) {
+			if(!newClaim.intersects(oldClaim, false)) {
 				smaller = true;
-
-				//remove surface fluids about to be unclaimed
-				oldClaim.removeSurfaceFluids(newClaim);
 			}
 		}
 
 		//ask the datastore to try and resize the claim, this checks for conflicts with other claims
-		CreateClaimResult result = GriefPreventionLight.instance.dataStore.resizeClaim(playerData.claimResizing, newx1, newx2, newy1, newy2, newz1, newz2, player);
+		CreateClaimResult result = GriefPreventionLight.instance.dataStore.resizeClaim(playerData.claimResizing, newx1, newx2, newz1, newz2, player);
 
 		if(result.succeeded) {
 			//decide how many claim blocks are available for more resizing
@@ -1020,20 +943,13 @@ public abstract class DataStore {
 
 			//if resizing someone else's claim, make a log entry
 			if(!player.getUniqueId().equals(playerData.claimResizing.ownerID) && playerData.claimResizing.parent == null) {
-				GriefPreventionLight.AddLogEntry(player.getName() + " resized " + playerData.claimResizing.getOwnerName() + "'s claim at " + GriefPreventionLight.getfriendlyLocationString(playerData.claimResizing.lesserBoundaryCorner) + ".");
+				GriefPreventionLight.AddLogEntry(player.getName() + " resized " + playerData.claimResizing.getOwnerName() + "'s claim at " + playerData.claimResizing.world.getName() + playerData.claimResizing.lesserBoundaryCorner + ".");
 			}
 
 			//if increased to a sufficiently large size and no subdivisions yet, send subdivision instructions
 			if(oldClaim.getArea() < 1000 && result.claim.getArea() >= 1000 && result.claim.children.size() == 0 && !player.hasPermission("griefprevention.adminclaims")) {
 				GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.BecomeMayor, 200L);
 				GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.SubdivisionVideo2, 201L, DataStore.SUBDIVISION_VIDEO_URL);
-			}
-
-			//if in a creative mode world and shrinking an existing claim, restore any unclaimed area
-			if(smaller && GriefPreventionLight.instance.creativeRulesApply(oldClaim.getLesserBoundaryCorner())) {
-				GriefPreventionLight.sendMessage(player, TextMode.Warn, Messages.UnclaimCleanupWarning);
-				GriefPreventionLight.instance.restoreClaim(oldClaim, 20L * 60 * 2);  //2 minutes
-				GriefPreventionLight.AddLogEntry(player.getName() + " shrank a claim @ " + GriefPreventionLight.getfriendlyLocationString(playerData.claimResizing.getLesserBoundaryCorner()));
 			}
 
 			//clean up
@@ -1073,10 +989,7 @@ public abstract class DataStore {
 		//initialize defaults
 		this.addDefault(defaults, Messages.RespectingClaims, "Now respecting claims.", null);
 		this.addDefault(defaults, Messages.IgnoringClaims, "Now ignoring claims.", null);
-		this.addDefault(defaults, Messages.NoCreativeUnClaim, "You can't unclaim this land.  You can only make this claim larger or create additional claims.", null);
 		this.addDefault(defaults, Messages.SuccessfulAbandon, "Claims abandoned.  You now have {0} available claim blocks.", "0: remaining blocks");
-		this.addDefault(defaults, Messages.RestoreNatureActivate, "Ready to restore some nature!  Right click to restore nature, and use /BasicClaims to stop.", null);
-		this.addDefault(defaults, Messages.RestoreNatureAggressiveActivate, "Aggressive mode activated.  Do NOT use this underneath anything you want to keep!  Right click to aggressively restore nature, and use /BasicClaims to stop.", null);
 		this.addDefault(defaults, Messages.FillModeActive, "Fill mode activated with radius {0}.  Right click an area to fill.", "0: fill radius");
 		this.addDefault(defaults, Messages.TransferClaimPermission, "That command requires the administrative claims permission.", null);
 		this.addDefault(defaults, Messages.TransferClaimMissing, "There's no claim here.  Stand in the administrative claim you want to transfer.", null);
@@ -1145,7 +1058,6 @@ public abstract class DataStore {
 		this.addDefault(defaults, Messages.NoDamageClaimedEntity, "That belongs to {0}.", "0: owner name");
 		this.addDefault(defaults, Messages.ShovelBasicClaimMode, "Shovel returned to basic claims mode.", null);
 		this.addDefault(defaults, Messages.RemainingBlocks, "You may claim up to {0} more blocks.", "0: remaining blocks");
-		this.addDefault(defaults, Messages.CreativeBasicsVideo2, "Click for Land Claim Help: {0}", "{0}: video URL");
 		this.addDefault(defaults, Messages.SurvivalBasicsVideo2, "Click for Land Claim Help: {0}", "{0}: video URL");
 		this.addDefault(defaults, Messages.TrappedChatKeyword, "trapped;stuck", "When mentioned in chat, players get information about the /trapped command (multiple words can be separated with semi-colons)");
 		this.addDefault(defaults, Messages.TrappedInstructions, "Are you trapped in someone's land claim?  Try the /trapped command.", null);
@@ -1397,7 +1309,7 @@ public abstract class DataStore {
 				ArrayList<Claim> claimsInChunk = this.chunksToClaimsMap.get(chunkID);
 				if(claimsInChunk != null) {
 					for(Claim claim : claimsInChunk) {
-						if(claim.inDataStore && claim.getLesserBoundaryCorner().getWorld().equals(location.getWorld())) {
+						if(claim.inDataStore && claim.world.equals(location.getWorld())) {
 							claims.add(claim);
 						}
 					}
@@ -1412,7 +1324,7 @@ public abstract class DataStore {
 	void deleteClaimsInWorld(World world, boolean deleteAdminClaims) {
 		for(int i = 0; i < claims.size(); i++) {
 			Claim claim = claims.get(i);
-			if(claim.getLesserBoundaryCorner().getWorld().equals(world)) {
+			if(claim.world.equals(world)) {
 				if(!deleteAdminClaims && claim.isAdminClaim()) continue;
 				this.deleteClaim(claim, false, false);
 				i--;

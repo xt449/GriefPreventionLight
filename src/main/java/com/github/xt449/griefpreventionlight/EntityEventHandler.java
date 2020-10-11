@@ -90,7 +90,7 @@ public class EntityEventHandler implements Listener {
 			event.setCancelled(true);
 		} else if(GriefPreventionLight.instance.config_claims_worldModes.get(event.getBlock().getWorld()) != ClaimsMode.Disabled) {
 			if(event.getEntityType() == EntityType.WITHER) {
-				Claim claim = this.dataStore.getClaimAt(event.getBlock().getLocation(), false, null);
+				Claim claim = this.dataStore.getClaimAt(event.getBlock().getLocation(), null);
 				if(claim == null || !claim.areExplosivesAllowed || !GriefPreventionLight.instance.config_blockClaimExplosions) {
 					event.setCancelled(true);
 				}
@@ -144,15 +144,9 @@ public class EntityEventHandler implements Listener {
 
 				//if did not fall straight down
 				if(originalLocation.getBlockX() != newLocation.getBlockX() || originalLocation.getBlockZ() != newLocation.getBlockZ()) {
-					//in creative mode worlds, never form the block
-					if(GriefPreventionLight.instance.config_claims_worldModes.get(newLocation.getWorld()) == ClaimsMode.Creative) {
-						event.setCancelled(true);
-						return;
-					}
-
 					//in other worlds, if landing in land claim, only allow if source was also in the land claim
-					Claim claim = this.dataStore.getClaimAt(newLocation, false, null);
-					if(claim != null && !claim.contains(originalLocation, false, false)) {
+					Claim claim = this.dataStore.getClaimAt(newLocation, null);
+					if(claim != null && !claim.contains(originalLocation, false)) {
 						//when not allowed, drop as item instead of forming a block
 						event.setCancelled(true);
 
@@ -231,17 +225,6 @@ public class EntityEventHandler implements Listener {
 
 		boolean applySurfaceRules = world.getEnvironment() == Environment.NORMAL && ((isCreeper && GriefPreventionLight.instance.config_blockSurfaceCreeperExplosions) || (!isCreeper && GriefPreventionLight.instance.config_blockSurfaceOtherExplosions));
 
-		//special rule for creative worlds: explosions don't destroy anything
-		if(GriefPreventionLight.instance.creativeRulesApply(location)) {
-			for(int i = 0; i < blocks.size(); i++) {
-				Block block = blocks.get(i);
-
-				blocks.remove(i--);
-			}
-
-			return;
-		}
-
 		//make a list of blocks which were allowed to explode
 		List<Block> explodedBlocks = new ArrayList<>();
 		Claim cachedClaim = null;
@@ -250,7 +233,7 @@ public class EntityEventHandler implements Listener {
 			if(block.getType() == Material.AIR) continue;
 
 			//is it in a land claim?
-			Claim claim = this.dataStore.getClaimAt(block.getLocation(), false, cachedClaim);
+			Claim claim = this.dataStore.getClaimAt(block.getLocation(), cachedClaim);
 			if(claim != null) {
 				cachedClaim = claim;
 			}
@@ -277,11 +260,6 @@ public class EntityEventHandler implements Listener {
 	//when an item spawns...
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onItemSpawn(ItemSpawnEvent event) {
-		//if in a creative world, cancel the event (don't drop items on the ground)
-		if(GriefPreventionLight.instance.creativeRulesApply(event.getLocation())) {
-			event.setCancelled(true);
-		}
-
 		//if item is on watch list, apply protection
 		ArrayList<PendingItemProtection> watchList = GriefPreventionLight.instance.pendingItemWatchList;
 		Item newItem = event.getEntity();
@@ -322,21 +300,9 @@ public class EntityEventHandler implements Listener {
 		}
 	}
 
-	//when an experience bottle explodes...
-	@EventHandler(priority = EventPriority.LOWEST)
-	public void onExpBottle(ExpBottleEvent event) {
-		//if in a creative world, cancel the event (don't drop exp on the ground)
-		if(GriefPreventionLight.instance.creativeRulesApply(event.getEntity().getLocation())) {
-			event.setExperience(0);
-		}
-	}
-
 	//when a creature spawns...
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onEntitySpawn(CreatureSpawnEvent event) {
-		//these rules apply only to creative worlds
-		if(!GriefPreventionLight.instance.creativeRulesApply(event.getLocation())) return;
-
 		//chicken eggs and breeding could potentially make a mess in the wilderness, once griefers get involved
 		SpawnReason reason = event.getSpawnReason();
 		if(reason != SpawnReason.SPAWNER_EGG && reason != SpawnReason.BUILD_IRONGOLEM && reason != SpawnReason.BUILD_SNOWMAN && event.getEntityType() != EntityType.ARMOR_STAND) {
@@ -345,7 +311,7 @@ public class EntityEventHandler implements Listener {
 		}
 
 		//otherwise, just apply the limit on total entities per claim (and no spawning in the wilderness!)
-		Claim claim = this.dataStore.getClaimAt(event.getLocation(), false, null);
+		Claim claim = this.dataStore.getClaimAt(event.getLocation(), null);
 		if(claim == null || claim.allowMoreEntities(true) != null) {
 			event.setCancelled(true);
 			return;
@@ -359,12 +325,6 @@ public class EntityEventHandler implements Listener {
 
 		//don't do the rest in worlds where claims are not enabled
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(entity.getWorld())) return;
-
-		//special rule for creative worlds: killed entities don't drop items or experience orbs
-		if(GriefPreventionLight.instance.creativeRulesApply(entity.getLocation())) {
-			event.setDroppedExp(0);
-			event.getDrops().clear();
-		}
 
 		//FEATURE: when a player is involved in a siege (attacker or defender role)
 		//his death will end the siege
@@ -380,7 +340,7 @@ public class EntityEventHandler implements Listener {
 
 		//decide whether or not to apply this feature to this situation (depends on the world where it happens)
 		if(GriefPreventionLight.instance.config_lockDeathDropsInPvpWorlds) {
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 			ProtectDeathDropsEvent protectionEvent = new ProtectDeathDropsEvent(claim);
 			Bukkit.getPluginManager().callEvent(protectionEvent);
 			if(!protectionEvent.isCancelled()) {
@@ -416,7 +376,7 @@ public class EntityEventHandler implements Listener {
 		//if its an enderman
 		if(event.getEntity().getType() == EntityType.ENDERMAN) {
 			//and the block is claimed
-			if(this.dataStore.getClaimAt(event.getBlock().getLocation(), false, null) != null) {
+			if(this.dataStore.getClaimAt(event.getBlock().getLocation(), null) != null) {
 				//he doesn't get to steal it
 				event.setCancelled(true);
 			}
@@ -480,20 +440,6 @@ public class EntityEventHandler implements Listener {
 			event.setCancelled(true);
 			GriefPreventionLight.sendMessage(event.getPlayer(), TextMode.Err, noBuildReason);
 			return;
-		}
-
-		//otherwise, apply entity-count limitations for creative worlds
-		else if(GriefPreventionLight.instance.creativeRulesApply(event.getEntity().getLocation())) {
-			PlayerData playerData = this.dataStore.getPlayerData(event.getPlayer().getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(event.getBlock().getLocation(), false, playerData.lastClaim);
-			if(claim == null) return;
-
-			String noEntitiesReason = claim.allowMoreEntities(false);
-			if(noEntitiesReason != null) {
-				GriefPreventionLight.sendMessage(event.getPlayer(), TextMode.Err, noEntitiesReason);
-				event.setCancelled(true);
-				return;
-			}
 		}
 	}
 
@@ -643,7 +589,7 @@ public class EntityEventHandler implements Listener {
 					cachedClaim = playerData.lastClaim;
 				}
 
-				Claim claim = this.dataStore.getClaimAt(event.getEntity().getLocation(), false, cachedClaim);
+				Claim claim = this.dataStore.getClaimAt(event.getEntity().getLocation(), cachedClaim);
 
 				//if it's claimed
 				if(claim != null) {
@@ -729,7 +675,7 @@ public class EntityEventHandler implements Listener {
 					cachedClaim = playerData.lastClaim;
 				}
 
-				Claim claim = this.dataStore.getClaimAt(event.getEntity().getLocation(), false, cachedClaim);
+				Claim claim = this.dataStore.getClaimAt(event.getEntity().getLocation(), cachedClaim);
 
 				//if it's claimed
 				if(claim != null) {
@@ -897,7 +843,7 @@ public class EntityEventHandler implements Listener {
 			cachedClaim = playerData.lastClaim;
 		}
 
-		Claim claim = this.dataStore.getClaimAt(event.getVehicle().getLocation(), false, cachedClaim);
+		Claim claim = this.dataStore.getClaimAt(event.getVehicle().getLocation(), cachedClaim);
 
 		//if it's claimed
 		if(claim != null) {
@@ -947,7 +893,7 @@ public class EntityEventHandler implements Listener {
 				Claim cachedClaim = null;
 				for(LivingEntity effected : event.getAffectedEntities()) {
 					if(effected.getType() == EntityType.VILLAGER || effected instanceof Animals) {
-						Claim claim = this.dataStore.getClaimAt(effected.getLocation(), false, cachedClaim);
+						Claim claim = this.dataStore.getClaimAt(effected.getLocation(), cachedClaim);
 						if(claim != null) {
 							cachedClaim = claim;
 							if(thrower == null || claim.allowContainers(thrower) != null) {

@@ -232,8 +232,7 @@ public class PlayerData {
 				for(Claim claim : this.claims) {
 					if(!claim.inDataStore) continue;
 					GriefPreventionLight.AddLogEntry(
-							GriefPreventionLight.getfriendlyLocationString(claim.getLesserBoundaryCorner()) + " // "
-									+ GriefPreventionLight.getfriendlyLocationString(claim.getGreaterBoundaryCorner()) + " = "
+							claim.world.getName() + claim.lesserBoundaryCorner + " // " + claim.greaterBoundaryCorner + " = "
 									+ claim.getArea()
 							, CustomLogEntryTypes.Debug, true);
 				}

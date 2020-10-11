@@ -186,14 +186,6 @@ class PlayerEventHandler implements Listener {
 			this.howToClaimPattern = Pattern.compile(this.dataStore.getMessage(Messages.HowToClaimRegex), Pattern.CASE_INSENSITIVE);
 		}
 
-		if(this.howToClaimPattern.matcher(message).matches()) {
-			if(instance.creativeRulesApply(player.getLocation())) {
-				GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.CreativeBasicsVideo2, 10L, DataStore.CREATIVE_VIDEO_URL);
-			} else {
-				GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.SurvivalBasicsVideo2, 10L, DataStore.SURVIVAL_VIDEO_URL);
-			}
-		}
-
 		//FEATURE: automatically educate players about the /trapped command
 		//check for "trapped" or "stuck" to educate players about the /trapped command
 		String trappedwords = this.dataStore.getMessage(
@@ -396,7 +388,7 @@ class PlayerEventHandler implements Listener {
 		}
 
 		if(isMonitoredCommand) {
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				playerData.lastClaim = claim;
 				String reason = claim.allowAccess(player);
@@ -813,24 +805,6 @@ class PlayerEventHandler implements Listener {
 		return this.recentLoginLogoutNotifications.size() > instance.config_spam_loginLogoutNotificationsPerMinute;
 	}
 
-	//when a player drops an item
-	@EventHandler(priority = EventPriority.LOWEST)
-	public void onPlayerDropItem(PlayerDropItemEvent event) {
-		Player player = event.getPlayer();
-
-		//in creative worlds, dropping items is blocked
-		if(instance.creativeRulesApply(player.getLocation())) {
-			event.setCancelled(true);
-			return;
-		}
-
-		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-
-		//FEATURE: players under siege or in PvP combat, can't throw items on the ground to hide
-		//them or give them away to other players before they are defeated
-
-	}
-
 	//when a player teleports via a portal
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
 	void onPlayerPortal(PlayerPortalEvent event) {
@@ -856,7 +830,7 @@ class PlayerEventHandler implements Listener {
 		//FEATURE: prevent players from using ender pearls to gain access to secured claims
 		TeleportCause cause = event.getCause();
 		if(cause == TeleportCause.CHORUS_FRUIT || (cause == TeleportCause.ENDER_PEARL && instance.config_claims_enderPearlsRequireAccessTrust)) {
-			Claim toClaim = this.dataStore.getClaimAt(event.getTo(), false, playerData.lastClaim);
+			Claim toClaim = this.dataStore.getClaimAt(event.getTo(), playerData.lastClaim);
 			if(toClaim != null) {
 				playerData.lastClaim = toClaim;
 				String noAccessReason = toClaim.allowAccess(player);
@@ -881,11 +855,11 @@ class PlayerEventHandler implements Listener {
 		if(event.getCause() == TeleportCause.UNKNOWN) return;
 
 		Location source = event.getFrom();
-		Claim sourceClaim = this.dataStore.getClaimAt(source, false, playerData.lastClaim);
+		Claim sourceClaim = this.dataStore.getClaimAt(source, playerData.lastClaim);
 
 
 		Location destination = event.getTo();
-		Claim destinationClaim = this.dataStore.getClaimAt(destination, false, null);
+		Claim destinationClaim = this.dataStore.getClaimAt(destination, null);
 
 	}
 
@@ -898,7 +872,7 @@ class PlayerEventHandler implements Listener {
 		Player player = event.getPlayer();
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 
-		Claim toClaim = this.dataStore.getClaimAt(player.getLocation(), false, playerData.lastClaim);
+		Claim toClaim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 		if(toClaim == null)
 			return;
 
@@ -975,27 +949,13 @@ class PlayerEventHandler implements Listener {
 			}
 		}
 
-		//limit armor placements when entity count is too high
-		if(entity.getType() == EntityType.ARMOR_STAND && instance.creativeRulesApply(player.getLocation())) {
-			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), false, playerData.lastClaim);
-			if(claim == null) return;
-
-			String noEntitiesReason = claim.allowMoreEntities(false);
-			if(noEntitiesReason != null) {
-				GriefPreventionLight.sendMessage(player, TextMode.Err, noEntitiesReason);
-				event.setCancelled(true);
-				return;
-			}
-		}
-
 		//always allow interactions when player is in ignore claims mode
 		if(playerData.ignoreClaims) return;
 
 		//if the entity is a vehicle and we're preventing theft in claims
 		if(instance.config_claims_preventTheft && entity instanceof Vehicle) {
 			//if the entity is in a claim
-			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), false, null);
+			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), null);
 			if(claim != null) {
 				//for storage entities, apply container rules (this is a potential theft)
 				if(entity instanceof InventoryHolder) {
@@ -1012,7 +972,7 @@ class PlayerEventHandler implements Listener {
 		//if the entity is an animal, apply container rules
 		if((instance.config_claims_preventTheft && (entity instanceof Animals || entity instanceof Fish)) || (entity.getType() == EntityType.VILLAGER && instance.config_claims_villagerTradingRequiresTrust)) {
 			//if the entity is in a claim
-			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), false, null);
+			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), null);
 			if(claim != null) {
 				if(claim.allowContainers(player) != null) {
 					String message = instance.dataStore.getMessage(Messages.NoDamageClaimedEntity, claim.getOwnerName());
@@ -1027,7 +987,7 @@ class PlayerEventHandler implements Listener {
 
 		//if preventing theft, prevent leashing claimed creatures
 		if(instance.config_claims_preventTheft && entity instanceof Creature && instance.getItemInHand(player, event.getHand()).getType() == Material.LEAD) {
-			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(entity.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				String failureReason = claim.allowContainers(player);
 				if(failureReason != null) {
@@ -1049,7 +1009,7 @@ class PlayerEventHandler implements Listener {
 		if(entity.getType() == EntityType.ARMOR_STAND || entity instanceof Animals) {
 			Player player = event.getPlayer();
 			PlayerData playerData = instance.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = instance.dataStore.getClaimAt(entity.getLocation(), false, playerData.lastClaim);
+			Claim claim = instance.dataStore.getClaimAt(entity.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				//if no permission, cancel
 				String errorMessage = claim.allowContainers(player);
@@ -1137,20 +1097,9 @@ class PlayerEventHandler implements Listener {
 
 		//if the bucket is being used in a claim, allow for dumping lava closer to other players
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		Claim claim = this.dataStore.getClaimAt(block.getLocation(), false, playerData.lastClaim);
+		Claim claim = this.dataStore.getClaimAt(block.getLocation(), playerData.lastClaim);
 		if(claim != null) {
 			minLavaDistance = 3;
-		}
-
-		//otherwise no wilderness dumping in creative mode worlds
-		else if(instance.creativeRulesApply(block.getLocation())) {
-			if(block.getY() >= instance.getSeaLevel(block.getWorld()) - 5 && !player.hasPermission("griefprevention.lava")) {
-				if(bucketEvent.getBucket() == Material.LAVA_BUCKET) {
-					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.NoWildernessBuckets);
-					bucketEvent.setCancelled(true);
-					return;
-				}
-			}
 		}
 
 		//log any suspicious placements (check sea level, world type, and adjacent blocks)
@@ -1173,7 +1122,7 @@ class PlayerEventHandler implements Listener {
 			}
 
 			if(makeLogEntry) {
-				GriefPreventionLight.AddLogEntry(player.getName() + " placed suspicious " + bucketEvent.getBucket().name() + " @ " + GriefPreventionLight.getfriendlyLocationString(block.getLocation()), CustomLogEntryTypes.SuspiciousActivity, true);
+				GriefPreventionLight.AddLogEntry(player.getName() + " placed suspicious " + bucketEvent.getBucket().name() + " @ " + block.getLocation(), CustomLogEntryTypes.SuspiciousActivity, true);
 			}
 		}
 	}
@@ -1229,7 +1178,7 @@ class PlayerEventHandler implements Listener {
 			if(clickedBlockType != Material.TURTLE_EGG)
 				return;
 			playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				playerData.lastClaim = claim;
 
@@ -1249,7 +1198,7 @@ class PlayerEventHandler implements Listener {
 				byte lightLevel = adjacentBlock.getLightFromBlocks();
 				if(lightLevel == 15 && adjacentBlock.getType() == Material.FIRE) {
 					if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-					Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+					Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 					if(claim != null) {
 						playerData.lastClaim = claim;
 
@@ -1295,7 +1244,7 @@ class PlayerEventHandler implements Listener {
 
 
 			//otherwise check permissions for the claim the player is in
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				playerData.lastClaim = claim;
 
@@ -1321,7 +1270,7 @@ class PlayerEventHandler implements Listener {
 
 						instance.config_claims_lockFenceGates && Tag.FENCE_GATES.isTagged(clickedBlockType))) {
 			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				playerData.lastClaim = claim;
 
@@ -1337,7 +1286,7 @@ class PlayerEventHandler implements Listener {
 		//otherwise apply rules for buttons and switches
 		else if(clickedBlock != null && instance.config_claims_preventButtonsSwitches && (Tag.BUTTONS.isTagged(clickedBlockType) || clickedBlockType == Material.LEVER)) {
 			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				playerData.lastClaim = claim;
 
@@ -1353,7 +1302,7 @@ class PlayerEventHandler implements Listener {
 		//otherwise apply rule for cake
 		else if(clickedBlock != null && instance.config_claims_preventTheft && clickedBlockType == Material.CAKE) {
 			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				playerData.lastClaim = claim;
 
@@ -1378,7 +1327,7 @@ class PlayerEventHandler implements Listener {
 								Tag.FLOWER_POTS.isTagged(clickedBlockType)
 				)) {
 			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 			if(claim != null) {
 				String noBuildReason = claim.allowBuild(player, clickedBlockType);
 				if(noBuildReason != null) {
@@ -1430,7 +1379,7 @@ class PlayerEventHandler implements Listener {
 				return;
 			} else if(clickedBlock != null && Tag.ITEMS_BOATS.isTagged(materialInHand)) {
 				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 				if(claim != null) {
 					String noBuildReason = claim.allowBuild(player, Material.OAK_BOAT); // Though only checks OAK_BOAT, permission should be same for all boats. Plus it being a boat doesn't seem to make a difference currently.
 					if(noBuildReason != null) {
@@ -1448,10 +1397,9 @@ class PlayerEventHandler implements Listener {
 							materialInHand == Material.FURNACE_MINECART ||
 							materialInHand == Material.CHEST_MINECART ||
 							materialInHand == Material.TNT_MINECART ||
-							materialInHand == Material.HOPPER_MINECART) &&
-					!instance.creativeRulesApply(clickedBlock.getLocation())) {
+							materialInHand == Material.HOPPER_MINECART)) {
 				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 				if(claim != null) {
 					String reason = claim.allowContainers(player);
 					if(reason != null) {
@@ -1477,8 +1425,7 @@ class PlayerEventHandler implements Listener {
 					materialInHand == Material.INFESTED_MOSSY_STONE_BRICKS ||
 					materialInHand == Material.INFESTED_CRACKED_STONE_BRICKS ||
 					materialInHand == Material.INFESTED_CHISELED_STONE_BRICKS ||
-					materialInHand == Material.HOPPER_MINECART) &&
-					instance.creativeRulesApply(clickedBlock.getLocation())) {
+					materialInHand == Material.HOPPER_MINECART)) {
 				//player needs build permission at this location
 				String noBuildReason = instance.allowBuild(player, clickedBlock.getLocation(), Material.MINECART);
 				if(noBuildReason != null) {
@@ -1489,7 +1436,7 @@ class PlayerEventHandler implements Listener {
 
 				//enforce limit on total number of entities in this claim
 				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
+				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 				if(claim == null) return;
 
 				String noEntitiesReason = claim.allowMoreEntities(false);
@@ -1554,7 +1501,7 @@ class PlayerEventHandler implements Listener {
 				}
 
 				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false /*ignore height*/, playerData.lastClaim);
+				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 
 				//no claim case
 				if(claim == null) {
@@ -1590,7 +1537,7 @@ class PlayerEventHandler implements Listener {
 					Visualization.Apply(player, visualization);
 
 					if(player.hasPermission("griefprevention.seeclaimsize")) {
-						GriefPreventionLight.sendMessage(player, TextMode.Info, "  " + claim.getWidth() + "x" + claim.getHeight() + "=" + claim.getArea());
+						GriefPreventionLight.sendMessage(player, TextMode.Info, "  " + claim.getWidth() + "x" + claim.getLength() + "=" + claim.getArea());
 					}
 
 					//if permission, tell about the player's offline time
@@ -1643,141 +1590,6 @@ class PlayerEventHandler implements Listener {
 			//if the player is in restore nature mode, do only that
 			UUID playerID = player.getUniqueId();
 			playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			if(playerData.shovelMode == ShovelMode.RestoreNature || playerData.shovelMode == ShovelMode.RestoreNatureAggressive) {
-				//if the clicked block is in a claim, visualize that claim and deliver an error message
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
-				if(claim != null) {
-					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.BlockClaimed, claim.getOwnerName());
-					Visualization visualization = Visualization.FromClaim(claim, clickedBlock.getY(), VisualizationType.ErrorClaim, player.getLocation());
-
-					// alert plugins of a visualization
-					Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, claim));
-
-					Visualization.Apply(player, visualization);
-
-					return;
-				}
-
-				//figure out which chunk to repair
-				Chunk chunk = player.getWorld().getChunkAt(clickedBlock.getLocation());
-				//start the repair process
-
-				//set boundaries for processing
-				int miny = clickedBlock.getY();
-
-				//if not in aggressive mode, extend the selection down to a little below sea level
-				if(!(playerData.shovelMode == ShovelMode.RestoreNatureAggressive)) {
-					if(miny > instance.getSeaLevel(chunk.getWorld()) - 10) {
-						miny = instance.getSeaLevel(chunk.getWorld()) - 10;
-					}
-				}
-
-				instance.restoreChunk(chunk, miny, playerData.shovelMode == ShovelMode.RestoreNatureAggressive, 0, player);
-
-				return;
-			}
-
-			//if in restore nature fill mode
-			if(playerData.shovelMode == ShovelMode.RestoreNatureFill) {
-				ArrayList<Material> allowedFillBlocks = new ArrayList<>();
-				Environment environment = clickedBlock.getWorld().getEnvironment();
-				if(environment == Environment.NETHER) {
-					allowedFillBlocks.add(Material.NETHERRACK);
-				} else if(environment == Environment.THE_END) {
-					allowedFillBlocks.add(Material.END_STONE);
-				} else {
-					allowedFillBlocks.add(Material.GRASS);
-					allowedFillBlocks.add(Material.DIRT);
-					allowedFillBlocks.add(Material.STONE);
-					allowedFillBlocks.add(Material.SAND);
-					allowedFillBlocks.add(Material.SANDSTONE);
-					allowedFillBlocks.add(Material.ICE);
-				}
-
-				Block centerBlock = clickedBlock;
-
-				int maxHeight = centerBlock.getY();
-				int minx = centerBlock.getX() - playerData.fillRadius;
-				int maxx = centerBlock.getX() + playerData.fillRadius;
-				int minz = centerBlock.getZ() - playerData.fillRadius;
-				int maxz = centerBlock.getZ() + playerData.fillRadius;
-				int minHeight = maxHeight - 10;
-				if(minHeight < 0) minHeight = 0;
-
-				Claim cachedClaim = null;
-				for(int x = minx; x <= maxx; x++) {
-					for(int z = minz; z <= maxz; z++) {
-						//circular brush
-						Location location = new Location(centerBlock.getWorld(), x, centerBlock.getY(), z);
-						if(location.distance(centerBlock.getLocation()) > playerData.fillRadius) continue;
-
-						//default fill block is initially the first from the allowed fill blocks list above
-						Material defaultFiller = allowedFillBlocks.get(0);
-
-						//prefer to use the block the player clicked on, if it's an acceptable fill block
-						if(allowedFillBlocks.contains(centerBlock.getType())) {
-							defaultFiller = centerBlock.getType();
-						}
-
-						//if the player clicks on water, try to sink through the water to find something underneath that's useful for a filler
-						else if(centerBlock.getType() == Material.WATER) {
-							Block block = centerBlock.getWorld().getBlockAt(centerBlock.getLocation());
-							while(!allowedFillBlocks.contains(block.getType()) && block.getY() > centerBlock.getY() - 10) {
-								block = block.getRelative(BlockFace.DOWN);
-							}
-							if(allowedFillBlocks.contains(block.getType())) {
-								defaultFiller = block.getType();
-							}
-						}
-
-						//fill bottom to top
-						for(int y = minHeight; y <= maxHeight; y++) {
-							Block block = centerBlock.getWorld().getBlockAt(x, y, z);
-
-							//respect claims
-							Claim claim = this.dataStore.getClaimAt(block.getLocation(), false, cachedClaim);
-							if(claim != null) {
-								cachedClaim = claim;
-								break;
-							}
-
-							//only replace air, spilling water, snow, long grass
-							if(block.getType() == Material.AIR || block.getType() == Material.SNOW || (block.getType() == Material.WATER && ((Levelled) block.getBlockData()).getLevel() != 0) || block.getType() == Material.GRASS) {
-								//if the top level, always use the default filler picked above
-								if(y == maxHeight) {
-									block.setType(defaultFiller);
-								}
-
-								//otherwise look to neighbors for an appropriate fill block
-								else {
-									Block eastBlock = block.getRelative(BlockFace.EAST);
-									Block westBlock = block.getRelative(BlockFace.WEST);
-									Block northBlock = block.getRelative(BlockFace.NORTH);
-									Block southBlock = block.getRelative(BlockFace.SOUTH);
-
-									//first, check lateral neighbors (ideally, want to keep natural layers)
-									if(allowedFillBlocks.contains(eastBlock.getType())) {
-										block.setType(eastBlock.getType());
-									} else if(allowedFillBlocks.contains(westBlock.getType())) {
-										block.setType(westBlock.getType());
-									} else if(allowedFillBlocks.contains(northBlock.getType())) {
-										block.setType(northBlock.getType());
-									} else if(allowedFillBlocks.contains(southBlock.getType())) {
-										block.setType(southBlock.getType());
-									}
-
-									//if all else fails, use the default filler selected above
-									else {
-										block.setType(defaultFiller);
-									}
-								}
-							}
-						}
-					}
-				}
-
-				return;
-			}
 
 			//if the player doesn't have claims permission, don't do anything
 			if(!player.hasPermission("griefprevention.createclaims")) {
@@ -1791,40 +1603,37 @@ class PlayerEventHandler implements Listener {
 
 				//figure out what the coords of his new claim would be
 				int newx1, newx2, newz1, newz2, newy1, newy2;
-				if(playerData.lastShovelLocation.getBlockX() == playerData.claimResizing.getLesserBoundaryCorner().getBlockX()) {
+				if(playerData.lastShovelLocation.getBlockX() == playerData.claimResizing.lesserBoundaryCorner.getX()) {
 					newx1 = clickedBlock.getX();
 				} else {
-					newx1 = playerData.claimResizing.getLesserBoundaryCorner().getBlockX();
+					newx1 = playerData.claimResizing.lesserBoundaryCorner.getX();
 				}
 
-				if(playerData.lastShovelLocation.getBlockX() == playerData.claimResizing.getGreaterBoundaryCorner().getBlockX()) {
+				if(playerData.lastShovelLocation.getBlockX() == playerData.claimResizing.greaterBoundaryCorner.getX()) {
 					newx2 = clickedBlock.getX();
 				} else {
-					newx2 = playerData.claimResizing.getGreaterBoundaryCorner().getBlockX();
+					newx2 = playerData.claimResizing.greaterBoundaryCorner.getX();
 				}
 
-				if(playerData.lastShovelLocation.getBlockZ() == playerData.claimResizing.getLesserBoundaryCorner().getBlockZ()) {
+				if(playerData.lastShovelLocation.getBlockZ() == playerData.claimResizing.lesserBoundaryCorner.getZ()) {
 					newz1 = clickedBlock.getZ();
 				} else {
-					newz1 = playerData.claimResizing.getLesserBoundaryCorner().getBlockZ();
+					newz1 = playerData.claimResizing.lesserBoundaryCorner.getZ();
 				}
 
-				if(playerData.lastShovelLocation.getBlockZ() == playerData.claimResizing.getGreaterBoundaryCorner().getBlockZ()) {
+				if(playerData.lastShovelLocation.getBlockZ() == playerData.claimResizing.greaterBoundaryCorner.getZ()) {
 					newz2 = clickedBlock.getZ();
 				} else {
-					newz2 = playerData.claimResizing.getGreaterBoundaryCorner().getBlockZ();
+					newz2 = playerData.claimResizing.greaterBoundaryCorner.getZ();
 				}
 
-				newy1 = playerData.claimResizing.getLesserBoundaryCorner().getBlockY();
-				newy2 = clickedBlock.getY() - instance.config_claims_claimsExtendIntoGroundDistance;
-
-				this.dataStore.resizeClaimWithChecks(player, playerData, newx1, newx2, newy1, newy2, newz1, newz2);
+				this.dataStore.resizeClaimWithChecks(player, playerData, newx1, newx2, newz1, newz2);
 
 				return;
 			}
 
 			//otherwise, since not currently resizing a claim, must be starting a resize, creating a new claim, or creating a subdivision
-			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), true /*ignore height*/, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 
 			//if within an existing claim, he's not creating a new one
 			if(claim != null) {
@@ -1832,7 +1641,7 @@ class PlayerEventHandler implements Listener {
 				String noEditReason = claim.allowEdit(player);
 				if(noEditReason == null) {
 					//if he clicked on a corner, start resizing it
-					if((clickedBlock.getX() == claim.getLesserBoundaryCorner().getBlockX() || clickedBlock.getX() == claim.getGreaterBoundaryCorner().getBlockX()) && (clickedBlock.getZ() == claim.getLesserBoundaryCorner().getBlockZ() || clickedBlock.getZ() == claim.getGreaterBoundaryCorner().getBlockZ())) {
+					if((clickedBlock.getX() == claim.lesserBoundaryCorner.getX() || clickedBlock.getX() == claim.greaterBoundaryCorner.getX()) && (clickedBlock.getZ() == claim.lesserBoundaryCorner.getZ() || clickedBlock.getZ() == claim.greaterBoundaryCorner.getZ())) {
 						playerData.claimResizing = claim;
 						playerData.lastShovelLocation = clickedBlock.getLocation();
 						GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.ResizeStart);
@@ -1868,7 +1677,6 @@ class PlayerEventHandler implements Listener {
 							CreateClaimResult result = this.dataStore.createClaim(
 									player.getWorld(),
 									playerData.lastShovelLocation.getBlockX(), clickedBlock.getX(),
-									playerData.lastShovelLocation.getBlockY() - instance.config_claims_claimsExtendIntoGroundDistance, clickedBlock.getY() - instance.config_claims_claimsExtendIntoGroundDistance,
 									playerData.lastShovelLocation.getBlockZ(), clickedBlock.getZ(),
 									null,  //owner is not used for subdivisions
 									playerData.claimSubdividing,
@@ -1954,7 +1762,7 @@ class PlayerEventHandler implements Listener {
 				GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.ClaimStart);
 
 				//show him where he's working
-				Claim newClaim = new Claim(clickedBlock.getLocation(), clickedBlock.getLocation(), null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
+				Claim newClaim = new Claim(new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
 				Visualization visualization = Visualization.FromClaim(newClaim, clickedBlock.getY(), VisualizationType.RestoreNature, player.getLocation());
 
 				// alert plugins of a visualization
@@ -2012,7 +1820,6 @@ class PlayerEventHandler implements Listener {
 				CreateClaimResult result = this.dataStore.createClaim(
 						player.getWorld(),
 						lastShovelLocation.getBlockX(), clickedBlock.getX(),
-						lastShovelLocation.getBlockY() - instance.config_claims_claimsExtendIntoGroundDistance, clickedBlock.getY() - instance.config_claims_claimsExtendIntoGroundDistance,
 						lastShovelLocation.getBlockZ(), clickedBlock.getZ(),
 						playerID,
 						null, null,
@@ -2052,8 +1859,6 @@ class PlayerEventHandler implements Listener {
 						GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.BecomeMayor, 200L);
 						GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.SubdivisionVideo2, 201L, DataStore.SUBDIVISION_VIDEO_URL);
 					}
-
-					instance.autoExtendClaim(result.claim);
 				}
 			}
 		}
@@ -2064,7 +1869,7 @@ class PlayerEventHandler implements Listener {
 	void onTakeBook(PlayerTakeLecternBookEvent event) {
 		Player player = event.getPlayer();
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		Claim claim = this.dataStore.getClaimAt(event.getLectern().getLocation(), false, playerData.lastClaim);
+		Claim claim = this.dataStore.getClaimAt(event.getLectern().getLocation(), playerData.lastClaim);
 		if(claim != null) {
 			playerData.lastClaim = claim;
 			String noContainerReason = claim.allowContainers(player);

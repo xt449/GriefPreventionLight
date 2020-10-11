@@ -106,7 +106,7 @@ public class BlockEventHandler implements Listener {
 		//send sign content to online administrators
 		if(!GriefPreventionLight.instance.config_signNotifications) return;
 
-		StringBuilder lines = new StringBuilder(" placed a sign @ " + GriefPreventionLight.getfriendlyLocationString(event.getBlock().getLocation()));
+		StringBuilder lines = new StringBuilder(" placed a sign @ " + event.getBlock().getLocation());
 		boolean notEmpty = false;
 		for(int i = 0; i < event.getLines().length; i++) {
 			String withoutSpaces = event.getLine(i).replace(" ", "");
@@ -179,7 +179,7 @@ public class BlockEventHandler implements Listener {
 		if(noBuildReason != null) {
 			// Allow players with container trust to place books in lecterns
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			Claim claim = this.dataStore.getClaimAt(block.getLocation(), true, playerData.lastClaim);
+			Claim claim = this.dataStore.getClaimAt(block.getLocation(), playerData.lastClaim);
 			if(block.getType() == Material.LECTERN && placeEvent.getBlockReplacedState().getType() == Material.LECTERN) {
 				if(claim != null) {
 					playerData.lastClaim = claim;
@@ -199,15 +199,9 @@ public class BlockEventHandler implements Listener {
 
 		//if the block is being placed within or under an existing claim
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		Claim claim = this.dataStore.getClaimAt(block.getLocation(), true, playerData.lastClaim);
+		Claim claim = this.dataStore.getClaimAt(block.getLocation(), playerData.lastClaim);
 		if(claim != null) {
 			playerData.lastClaim = claim;
-
-			//if the player has permission for the claim and he's placing UNDER the claim
-			if(block.getY() <= claim.lesserBoundaryCorner.getBlockY() && claim.allowBuild(player, block.getType()) == null) {
-				//extend the claim downward
-				this.dataStore.extendClaim(claim, block.getY() - GriefPreventionLight.instance.config_claims_claimsExtendIntoGroundDistance);
-			}
 
 			//allow for a build warning in the future
 			playerData.warnedAboutBuildingOutsideClaims = false;
@@ -229,7 +223,7 @@ public class BlockEventHandler implements Listener {
 			if(playerData.getClaims().size() == 0) {
 				//radius == 0 means protect ONLY the chest
 				if(GriefPreventionLight.instance.config_claims_automaticClaimsForNewPlayersRadius == 0) {
-					this.dataStore.createClaim(block.getWorld(), block.getX(), block.getX(), block.getY(), block.getY(), block.getZ(), block.getZ(), player.getUniqueId(), null, null, player);
+					this.dataStore.createClaim(block.getWorld(), block.getX(), block.getX(), block.getZ(), block.getZ(), player.getUniqueId(), null, null, player);
 					GriefPreventionLight.sendMessage(player, TextMode.Success, Messages.ChestClaimConfirmation);
 				}
 
@@ -250,7 +244,6 @@ public class BlockEventHandler implements Listener {
 							result = this.dataStore.createClaim(
 									block.getWorld(),
 									block.getX() - radius, block.getX() + radius,
-									block.getY() - GriefPreventionLight.instance.config_claims_claimsExtendIntoGroundDistance, block.getY(),
 									block.getZ() - radius, block.getZ() + radius,
 									player.getUniqueId(),
 									null, null,
@@ -285,7 +278,7 @@ public class BlockEventHandler implements Listener {
 			}
 
 			//check to see if this chest is in a claim, and warn when it isn't
-			if(GriefPreventionLight.instance.config_claims_preventTheft && this.dataStore.getClaimAt(block.getLocation(), false, playerData.lastClaim) == null) {
+			if(GriefPreventionLight.instance.config_claims_preventTheft && this.dataStore.getClaimAt(block.getLocation(), playerData.lastClaim) == null) {
 				GriefPreventionLight.sendMessage(player, TextMode.Warn, Messages.UnprotectedChestWarning);
 			}
 		}
@@ -343,16 +336,6 @@ public class BlockEventHandler implements Listener {
 				claim == null) {
 			GriefPreventionLight.sendMessage(player, TextMode.Warn, Messages.NoPistonsOutsideClaims);
 		}
-
-		//limit active blocks in creative mode worlds
-		if(!player.hasPermission("griefprevention.adminclaims") && GriefPreventionLight.instance.creativeRulesApply(block.getLocation()) && isActiveBlock(block)) {
-			String noPlaceReason = claim.allowMoreActiveBlocks();
-			if(noPlaceReason != null) {
-				GriefPreventionLight.sendMessage(player, TextMode.Err, noPlaceReason);
-				placeEvent.setCancelled(true);
-				return;
-			}
-		}
 	}
 
 	static boolean isActiveBlock(Block block) {
@@ -390,7 +373,7 @@ public class BlockEventHandler implements Listener {
 
 		BlockFace direction = event.getDirection();
 		Block pistonBlock = event.getBlock();
-		Claim pistonClaim = this.dataStore.getClaimAt(pistonBlock.getLocation(), false, null);
+		Claim pistonClaim = this.dataStore.getClaimAt(pistonBlock.getLocation(), null);
 
 		// A claim is required, but the piston is not inside a claim.
 		if(pistonClaim == null && pistonMode == PistonMode.CLAIMS_ONLY) {
@@ -401,7 +384,7 @@ public class BlockEventHandler implements Listener {
 		// If no blocks are moving, quickly check if another claim's boundaries are violated.
 		if(blocks.isEmpty()) {
 			Block invadedBlock = pistonBlock.getRelative(direction);
-			Claim invadedClaim = this.dataStore.getClaimAt(invadedBlock.getLocation(), false, pistonClaim);
+			Claim invadedClaim = this.dataStore.getClaimAt(invadedBlock.getLocation(), pistonClaim);
 			if(invadedClaim != null && (pistonClaim == null || !Objects.equals(pistonClaim.ownerID, invadedClaim.ownerID))) {
 				event.setCancelled(true);
 			}
@@ -443,10 +426,7 @@ public class BlockEventHandler implements Listener {
 		 *  - Push ice out, place torch, get water outside the claim
 		 */
 		if(pistonMode == PistonMode.CLAIMS_ONLY) {
-			Location minLoc = pistonClaim.getLesserBoundaryCorner();
-			Location maxLoc = pistonClaim.getGreaterBoundaryCorner();
-
-			if(minY < minLoc.getY() || minX < minLoc.getBlockX() || maxX > maxLoc.getBlockX() || minZ < minLoc.getBlockZ() || maxZ > maxLoc.getBlockZ())
+			if(minY < 0 || minX < pistonClaim.lesserBoundaryCorner.getX() || maxX > pistonClaim.greaterBoundaryCorner.getX() || minZ < pistonClaim.lesserBoundaryCorner.getZ() || maxZ > pistonClaim.greaterBoundaryCorner.getZ())
 				event.setCancelled(true);
 
 			return;
@@ -473,11 +453,8 @@ public class BlockEventHandler implements Listener {
 			for(Claim claim : intersectable) {
 				if(claim == pistonClaim) continue;
 
-				Location minLoc = claim.getLesserBoundaryCorner();
-				Location maxLoc = claim.getGreaterBoundaryCorner();
-
 				// Ensure claim intersects with bounding box.
-				if(maxY < minLoc.getBlockY() || minX > maxLoc.getBlockX() || maxX < minLoc.getBlockX() || minZ > maxLoc.getBlockZ() || maxZ < minLoc.getBlockZ())
+				if(maxY < 0 || minX > claim.greaterBoundaryCorner.getX() || maxX < claim.lesserBoundaryCorner.getX() || minZ > claim.greaterBoundaryCorner.getZ() || maxZ < claim.lesserBoundaryCorner.getZ())
 					continue;
 
 				// If owners are different, cancel.
@@ -503,13 +480,13 @@ public class BlockEventHandler implements Listener {
 			// Reimplement DataStore#getClaimAt to ignore subclaims to maximize performance.
 			Location location = block.getLocation();
 			Claim claim = null;
-			if(lastClaim != null && lastClaim.inDataStore && lastClaim.contains(location, false, true))
+			if(lastClaim != null && lastClaim.inDataStore && lastClaim.contains(location, true))
 				claim = lastClaim;
 			else {
 				ArrayList<Claim> chunkClaims = dataStore.chunksToClaimsMap.get(DataStore.getChunkHash(location));
 				if(chunkClaims != null) {
 					for(Claim chunkClaim : chunkClaims) {
-						if(chunkClaim.contains(location, false, true)) {
+						if(chunkClaim.contains(location, true)) {
 							claim = chunkClaim;
 							break;
 						}
@@ -538,7 +515,7 @@ public class BlockEventHandler implements Listener {
 		//don't track in worlds where claims are not enabled
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(igniteEvent.getBlock().getWorld())) return;
 
-		if(igniteEvent.getCause() == IgniteCause.LIGHTNING && GriefPreventionLight.instance.dataStore.getClaimAt(igniteEvent.getIgnitingEntity().getLocation(), false, null) != null) {
+		if(igniteEvent.getCause() == IgniteCause.LIGHTNING && GriefPreventionLight.instance.dataStore.getClaimAt(igniteEvent.getIgnitingEntity().getLocation(), null) != null) {
 //        	if(igniteEvent.getIgnitingEntity().hasMetadata("GP_TRIDENT")){ //BlockIgniteEvent is called before LightningStrikeEvent. See #532
 			igniteEvent.setCancelled(true);
 //			}
@@ -548,8 +525,8 @@ public class BlockEventHandler implements Listener {
 		if(igniteEvent.getCause() == IgniteCause.FIREBALL && igniteEvent.getIgnitingEntity() instanceof Fireball) {
 			ProjectileSource shooter = ((Fireball) igniteEvent.getIgnitingEntity()).getShooter();
 			if(shooter instanceof BlockProjectileSource) {
-				Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(igniteEvent.getBlock().getLocation(), false, null);
-				if(claim != null && GriefPreventionLight.instance.dataStore.getClaimAt(((BlockProjectileSource) shooter).getBlock().getLocation(), false, claim) == claim) {
+				Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(igniteEvent.getBlock().getLocation(), null);
+				if(claim != null && GriefPreventionLight.instance.dataStore.getClaimAt(((BlockProjectileSource) shooter).getBlock().getLocation(), claim) == claim) {
 					return;
 				}
 			}
@@ -557,7 +534,7 @@ public class BlockEventHandler implements Listener {
 
 		// Handle arrows igniting TNT.
 		if(igniteEvent.getCause() == IgniteCause.ARROW) {
-			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(igniteEvent.getBlock().getLocation(), false, null);
+			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(igniteEvent.getBlock().getLocation(), null);
 
 			if(claim == null) {
 				// Only TNT can be ignited by arrows, so the targeted block will be destroyed by completion.
@@ -574,7 +551,7 @@ public class BlockEventHandler implements Listener {
 
 				// Allow ignition if arrow was shot by a dispenser in the same claim.
 				if(shooter instanceof BlockProjectileSource &&
-						GriefPreventionLight.instance.dataStore.getClaimAt(((BlockProjectileSource) shooter).getBlock().getLocation(), false, claim) == claim)
+						GriefPreventionLight.instance.dataStore.getClaimAt(((BlockProjectileSource) shooter).getBlock().getLocation(), claim) == claim)
 					return;
 			}
 
@@ -608,7 +585,7 @@ public class BlockEventHandler implements Listener {
 		}
 
 		//never spread into a claimed area, regardless of settings
-		if(this.dataStore.getClaimAt(spreadEvent.getBlock().getLocation(), false, null) != null) {
+		if(this.dataStore.getClaimAt(spreadEvent.getBlock().getLocation(), null) != null) {
 			if(GriefPreventionLight.instance.config_claims_firespreads) return;
 			spreadEvent.setCancelled(true);
 
@@ -654,7 +631,7 @@ public class BlockEventHandler implements Listener {
 		}
 
 		//never burn claimed blocks, regardless of settings
-		if(this.dataStore.getClaimAt(burnEvent.getBlock().getLocation(), false, null) != null) {
+		if(this.dataStore.getClaimAt(burnEvent.getBlock().getLocation(), null) != null) {
 			if(GriefPreventionLight.instance.config_claims_firedamages) return;
 			burnEvent.setCancelled(true);
 		}
@@ -675,36 +652,15 @@ public class BlockEventHandler implements Listener {
 		//where to?
 		Block toBlock = spreadEvent.getToBlock();
 		Location toLocation = toBlock.getLocation();
-		Claim toClaim = this.dataStore.getClaimAt(toLocation, false, lastSpreadClaim);
+		Claim toClaim = this.dataStore.getClaimAt(toLocation, lastSpreadClaim);
 
 		//if into a land claim, it must be from the same land claim
 		if(toClaim != null) {
 			this.lastSpreadClaim = toClaim;
-			if(!toClaim.contains(spreadEvent.getBlock().getLocation(), false, true)) {
+			if(!toClaim.contains(spreadEvent.getBlock().getLocation(), true)) {
 				//exception: from parent into subdivision
-				if(toClaim.parent == null || !toClaim.parent.contains(spreadEvent.getBlock().getLocation(), false, false)) {
+				if(toClaim.parent == null || !toClaim.parent.contains(spreadEvent.getBlock().getLocation(), false)) {
 					spreadEvent.setCancelled(true);
-				}
-			}
-		}
-
-		//otherwise if creative mode world, don't flow
-		else if(GriefPreventionLight.instance.creativeRulesApply(toLocation)) {
-			spreadEvent.setCancelled(true);
-		}
-	}
-
-	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
-	public void onForm(BlockFormEvent event) {
-		Block block = event.getBlock();
-		Location location = block.getLocation();
-
-		if(GriefPreventionLight.instance.creativeRulesApply(location)) {
-			Material type = block.getType();
-			if(type == Material.COBBLESTONE || type == Material.OBSIDIAN || type == Material.LAVA || type == Material.WATER) {
-				Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(location, false, null);
-				if(claim == null) {
-					event.setCancelled(true);
 				}
 			}
 		}
@@ -721,7 +677,7 @@ public class BlockEventHandler implements Listener {
 
 		Block block = event.getHitBlock();
 
-		Claim claim = dataStore.getClaimAt(block.getLocation(), false, null);
+		Claim claim = dataStore.getClaimAt(block.getLocation(), null);
 		if(claim == null)
 			return;
 
@@ -761,15 +717,8 @@ public class BlockEventHandler implements Listener {
 
 		//to where?
 		Block toBlock = fromBlock.getRelative(dispenser.getFacing());
-		Claim fromClaim = this.dataStore.getClaimAt(fromBlock.getLocation(), false, null);
-		Claim toClaim = this.dataStore.getClaimAt(toBlock.getLocation(), false, fromClaim);
-
-		//into wilderness is NOT OK in creative mode worlds
-		Material materialDispensed = dispenseEvent.getItem().getType();
-		if((materialDispensed == Material.WATER_BUCKET || materialDispensed == Material.LAVA_BUCKET) && GriefPreventionLight.instance.creativeRulesApply(dispenseEvent.getBlock().getLocation()) && toClaim == null) {
-			dispenseEvent.setCancelled(true);
-			return;
-		}
+		Claim fromClaim = this.dataStore.getClaimAt(fromBlock.getLocation(), null);
+		Claim toClaim = this.dataStore.getClaimAt(toBlock.getLocation(), fromClaim);
 
 		//wilderness to wilderness is OK
 		if(fromClaim == null && toClaim == null) return;
@@ -790,7 +739,7 @@ public class BlockEventHandler implements Listener {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(growEvent.getWorld())) return;
 
 		Location rootLocation = growEvent.getLocation();
-		Claim rootClaim = this.dataStore.getClaimAt(rootLocation, false, null);
+		Claim rootClaim = this.dataStore.getClaimAt(rootLocation, null);
 		String rootOwnerName = null;
 
 		//who owns the spreading block, if anyone?
@@ -808,7 +757,7 @@ public class BlockEventHandler implements Listener {
 		//for each block growing
 		for(int i = 0; i < growEvent.getBlocks().size(); i++) {
 			BlockState block = growEvent.getBlocks().get(i);
-			Claim blockClaim = this.dataStore.getClaimAt(block.getLocation(), false, rootClaim);
+			Claim blockClaim = this.dataStore.getClaimAt(block.getLocation(), rootClaim);
 
 			//if it's growing into a claim
 			if(blockClaim != null) {
@@ -855,7 +804,7 @@ public class BlockEventHandler implements Listener {
 		}
 
 		// Cancels the event if in a claim, as we can not efficiently retrieve the person/entity who broke the Item Frame/Hangable Item.
-		if(this.dataStore.getClaimAt(event.getEntity().getLocation(), false, null) != null) {
+		if(this.dataStore.getClaimAt(event.getEntity().getLocation(), null) != null) {
 			event.setCancelled(true);
 		}
 	}

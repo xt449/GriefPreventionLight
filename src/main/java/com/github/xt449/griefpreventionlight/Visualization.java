@@ -142,18 +142,17 @@ public class Visualization {
 			accentBlockData = Material.NETHERRACK.createBlockData();
 		}
 
-		addClaimElements(claim.getLesserBoundaryCorner(), claim.getGreaterBoundaryCorner(), locality, height, cornerBlockData, accentBlockData, 10);
+		addClaimElements(claim.world, claim.lesserBoundaryCorner, claim.greaterBoundaryCorner, locality, cornerBlockData, accentBlockData, 10);
 	}
 
 	//adds a general claim cuboid (represented by min and max) visualization to the current visualization
-	public void addClaimElements(Location min, Location max, Location locality, int height, BlockData cornerBlockData, BlockData accentBlockData, int STEP) {
-		World world = min.getWorld();
+	public void addClaimElements(World world, Coordinate min, Coordinate max, Location locality, BlockData cornerBlockData, BlockData accentBlockData, int STEP) {
 		boolean waterIsTransparent = locality.getBlock().getType() == Material.WATER;
 
-		int smallx = min.getBlockX();
-		int smallz = min.getBlockZ();
-		int bigx = max.getBlockX();
-		int bigz = max.getBlockZ();
+		int smallx = min.getX();
+		int smallz = min.getZ();
+		int bigx = max.getX();
+		int bigz = max.getZ();
 
 		ArrayList<VisualizationElement> newElements = new ArrayList<>();
 
@@ -206,7 +205,7 @@ public class Visualization {
 		this.removeElementsOutOfRange(newElements, minx, minz, maxx, maxz);
 
 		//remove any elements outside the claim
-		BoundingBox box = BoundingBox.of(min, max);
+		BoundingBox box = BoundingBox.of(new Location(world, min.x, 0, min.z), new Location(world, max.x, world.getMaxHeight(), max.z));
 		for(int i = 0; i < newElements.size(); i++) {
 			VisualizationElement element = newElements.get(i);
 			if(!containsIncludingIgnoringHeight(box, element.location.toVector())) {
@@ -217,8 +216,7 @@ public class Visualization {
 		//set Y values and real block information for any remaining visualization blocks
 		for(VisualizationElement element : newElements) {
 			Location tempLocation = element.location;
-			element.location = getVisibleLocation(tempLocation.getWorld(), tempLocation.getBlockX(), height, tempLocation.getBlockZ(), waterIsTransparent);
-			height = element.location.getBlockY();
+			element.location = getVisibleLocation(tempLocation.getWorld(), tempLocation.getBlockX(), tempLocation.getBlockZ(), waterIsTransparent);
 			element.realBlock = element.location.getBlock().getBlockData();
 		}
 
@@ -243,8 +241,8 @@ public class Visualization {
 	}
 
 	//finds a block the player can probably see.  this is how visualizations "cling" to the ground or ceiling
-	private static Location getVisibleLocation(World world, int x, int y, int z, boolean waterIsTransparent) {
-		Block block = world.getBlockAt(x, y, z);
+	private static Location getVisibleLocation(World world, int x, int z, boolean waterIsTransparent) {
+		Block block = world.getHighestBlockAt(x, z);
 		BlockFace direction = (isTransparent(block, waterIsTransparent)) ? BlockFace.DOWN : BlockFace.UP;
 
 		while(block.getY() >= 1 &&
