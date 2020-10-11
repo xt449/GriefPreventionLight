@@ -29,8 +29,6 @@ import org.bukkit.block.data.Levelled;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.command.Command;
 import org.bukkit.entity.*;
-import org.bukkit.entity.minecart.PoweredMinecart;
-import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -357,12 +355,6 @@ class PlayerEventHandler implements Listener {
 
 		//if in pvp, block any pvp-banned slash commands
 		if(playerData == null) playerData = this.dataStore.getPlayerData(event.getPlayer().getUniqueId());
-
-		if((playerData.inPvpCombat() || playerData.siegeData != null) && instance.config_pvp_blockedCommands.contains(command)) {
-			event.setCancelled(true);
-			GriefPrevention.sendMessage(event.getPlayer(), TextMode.Err, Messages.CommandBannedInPvP);
-			return;
-		}
 
 		//soft mute for chat slash commands
 		if(category == CommandCategory.Chat && this.dataStore.isSoftMuted(player.getUniqueId())) {
@@ -779,18 +771,7 @@ class PlayerEventHandler implements Listener {
 			this.dataStore.savePlayerData(player.getUniqueId(), playerData);
 		}
 
-		//FEATURE: players in pvp combat when they log out will die
-		if(instance.config_pvp_punishLogout && playerData.inPvpCombat()) {
-			player.setHealth(0);
-		}
-
 		//FEATURE: during a siege, any player who logs out dies and forfeits the siege
-
-		//if player was involved in a siege, he forfeits
-		if(playerData.siegeData != null) {
-			if(player.getHealth() > 0)
-				player.setHealth(0);  //might already be zero from above, this avoids a double death message
-		}
 
 		//drop data about this player
 		this.dataStore.clearCachedPlayerData(playerID);
@@ -848,17 +829,6 @@ class PlayerEventHandler implements Listener {
 		//FEATURE: players under siege or in PvP combat, can't throw items on the ground to hide
 		//them or give them away to other players before they are defeated
 
-		//if in combat, don't let him drop it
-		if(!instance.config_pvp_allowCombatItemDrop && playerData.inPvpCombat()) {
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.PvPNoDrop);
-			event.setCancelled(true);
-		}
-
-		//if he's under siege, don't let him drop it
-		else if(playerData.siegeData != null) {
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoDrop);
-			event.setCancelled(true);
-		}
 	}
 
 	//when a player teleports via a portal
@@ -912,19 +882,11 @@ class PlayerEventHandler implements Listener {
 
 		Location source = event.getFrom();
 		Claim sourceClaim = this.dataStore.getClaimAt(source, false, playerData.lastClaim);
-		if(sourceClaim != null && sourceClaim.siegeData != null) {
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoTeleport);
-			event.setCancelled(true);
-			return;
-		}
+
 
 		Location destination = event.getTo();
 		Claim destinationClaim = this.dataStore.getClaimAt(destination, false, null);
-		if(destinationClaim != null && destinationClaim.siegeData != null) {
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.BesiegedNoTeleport);
-			event.setCancelled(true);
-			return;
-		}
+
 	}
 
 	//when a player triggers a raid (in a claim)
@@ -991,18 +953,6 @@ class PlayerEventHandler implements Listener {
 
 						return;
 					}
-					if(!instance.pvpRulesApply(entity.getLocation().getWorld()) || instance.config_pvp_protectPets) {
-						//otherwise disallow
-						OfflinePlayer owner = instance.getServer().getOfflinePlayer(ownerID);
-						String ownerName = owner.getName();
-						if(ownerName == null) ownerName = "someone";
-						String message = instance.dataStore.getMessage(Messages.NotYourPet, ownerName);
-						if(player.hasPermission("griefprevention.ignoreclaims"))
-							message += "  " + instance.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
-						GriefPrevention.sendMessage(player, TextMode.Err, message);
-						event.setCancelled(true);
-						return;
-					}
 				}
 			} else  //world repair code for a now-fixed GP bug //TODO: necessary anymore?
 			{
@@ -1041,21 +991,6 @@ class PlayerEventHandler implements Listener {
 
 		//always allow interactions when player is in ignore claims mode
 		if(playerData.ignoreClaims) return;
-
-		//don't allow container access during pvp combat
-		if((entity instanceof StorageMinecart || entity instanceof PoweredMinecart)) {
-			if(playerData.siegeData != null) {
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoContainers);
-				event.setCancelled(true);
-				return;
-			}
-
-			if(playerData.inPvpCombat()) {
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.PvPNoContainers);
-				event.setCancelled(true);
-				return;
-			}
-		}
 
 		//if the entity is a vehicle and we're preventing theft in claims
 		if(instance.config_claims_preventTheft && entity instanceof Vehicle) {
@@ -1161,28 +1096,6 @@ class PlayerEventHandler implements Listener {
 				}
 			}
 		}
-
-		//the rest of this code is specific to pvp worlds
-		if(!instance.pvpRulesApply(player.getWorld())) return;
-
-		//if we're preventing spawn camping and the player was previously empty handed...
-		if(instance.config_pvp_protectFreshSpawns && (instance.getItemInHand(player, EquipmentSlot.HAND).getType() == Material.AIR)) {
-			//if that player is currently immune to pvp
-			PlayerData playerData = this.dataStore.getPlayerData(event.getPlayer().getUniqueId());
-			if(playerData.pvpImmune) {
-				//if it's been less than 10 seconds since the last time he spawned, don't pick up the item
-				long now = Calendar.getInstance().getTimeInMillis();
-				long elapsedSinceLastSpawn = now - playerData.lastSpawn;
-				if(elapsedSinceLastSpawn < 10000) {
-					event.setCancelled(true);
-					return;
-				}
-
-				//otherwise take away his immunity. he may be armed now.  at least, he's worth killing for some loot
-				playerData.pvpImmune = false;
-				GriefPrevention.sendMessage(player, TextMode.Warn, Messages.PvPImmunityEnd);
-			}
-		}
 	}
 
 	//when a player switches in-hand items
@@ -1240,21 +1153,6 @@ class PlayerEventHandler implements Listener {
 			}
 		}
 
-		//lava buckets can't be dumped near other players unless pvp is on
-		if(!doesAllowLavaProximityInWorld(block.getWorld()) && !player.hasPermission("griefprevention.lava")) {
-			if(bucketEvent.getBucket() == Material.LAVA_BUCKET) {
-				List<Player> players = block.getWorld().getPlayers();
-				for(Player otherPlayer : players) {
-					Location location = otherPlayer.getLocation();
-					if(!otherPlayer.equals(player) && otherPlayer.getGameMode() == GameMode.SURVIVAL && player.canSee(otherPlayer) && block.getY() >= location.getBlockY() - 1 && location.distanceSquared(block.getLocation()) < minLavaDistance * minLavaDistance) {
-						GriefPrevention.sendMessage(player, TextMode.Err, Messages.NoLavaNearOtherPlayer, "another player");
-						bucketEvent.setCancelled(true);
-						return;
-					}
-				}
-			}
-		}
-
 		//log any suspicious placements (check sea level, world type, and adjacent blocks)
 		if(block.getY() >= instance.getSeaLevel(block.getWorld()) - 5 && !player.hasPermission("griefprevention.lava") && block.getWorld().getEnvironment() != Environment.NETHER) {
 			//if certain blocks are nearby, it's less suspicious and not worth logging
@@ -1277,14 +1175,6 @@ class PlayerEventHandler implements Listener {
 			if(makeLogEntry) {
 				GriefPrevention.AddLogEntry(player.getName() + " placed suspicious " + bucketEvent.getBucket().name() + " @ " + GriefPrevention.getfriendlyLocationString(block.getLocation()), CustomLogEntryTypes.SuspiciousActivity, true);
 			}
-		}
-	}
-
-	private boolean doesAllowLavaProximityInWorld(World world) {
-		if(GriefPrevention.instance.pvpRulesApply(world)) {
-			return GriefPrevention.instance.config_pvp_allowLavaNearPlayers;
-		} else {
-			return GriefPrevention.instance.config_pvp_allowLavaNearPlayers_NonPvp;
 		}
 	}
 
@@ -1403,19 +1293,6 @@ class PlayerEventHandler implements Listener {
 				))) {
 			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
 
-			//block container use while under siege, so players can't hide items from attackers
-			if(playerData.siegeData != null) {
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoContainers);
-				event.setCancelled(true);
-				return;
-			}
-
-			//block container use during pvp combat, same reason
-			if(playerData.inPvpCombat()) {
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.PvPNoContainers);
-				event.setCancelled(true);
-				return;
-			}
 
 			//otherwise check permissions for the claim the player is in
 			Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
@@ -1428,13 +1305,6 @@ class PlayerEventHandler implements Listener {
 					GriefPrevention.sendMessage(player, TextMode.Err, noContainersReason);
 					return;
 				}
-			}
-
-			//if the event hasn't been cancelled, then the player is allowed to use the container
-			//so drop any pvp protection
-			if(playerData.pvpImmune) {
-				playerData.pvpImmune = false;
-				GriefPrevention.sendMessage(player, TextMode.Warn, Messages.PvPImmunityEnd);
 			}
 		}
 
@@ -1750,11 +1620,7 @@ class PlayerEventHandler implements Listener {
 
 			//disable golden shovel while under siege
 			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-			if(playerData.siegeData != null) {
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoShovel);
-				event.setCancelled(true);
-				return;
-			}
+
 
 			//FEATURE: shovel and stick can be used from a distance away
 			if(action == Action.RIGHT_CLICK_AIR) {
@@ -2103,12 +1969,6 @@ class PlayerEventHandler implements Listener {
 				if(!lastShovelLocation.getWorld().equals(clickedBlock.getWorld())) {
 					playerData.lastShovelLocation = null;
 					this.onPlayerInteract(event);
-					return;
-				}
-
-				//apply pvp rule
-				if(playerData.inPvpCombat()) {
-					GriefPrevention.sendMessage(player, TextMode.Err, Messages.NoClaimDuringPvP);
 					return;
 				}
 

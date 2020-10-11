@@ -164,40 +164,12 @@ public class BlockEventHandler implements Listener {
 		}
 	}
 
-	private boolean doesAllowFireProximityInWorld(World world) {
-		if(GriefPrevention.instance.pvpRulesApply(world)) {
-			return GriefPrevention.instance.config_pvp_allowFireNearPlayers;
-		} else {
-			return GriefPrevention.instance.config_pvp_allowFireNearPlayers_NonPvp;
-		}
-	}
-
 	//when a player places a block...
 	@SuppressWarnings("null")
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void onBlockPlace(BlockPlaceEvent placeEvent) {
 		Player player = placeEvent.getPlayer();
 		Block block = placeEvent.getBlock();
-
-		//FEATURE: limit fire placement, to prevent PvP-by-fire
-
-		//if placed block is fire and pvp is off, apply rules for proximity to other players
-		if(block.getType() == Material.FIRE && !doesAllowFireProximityInWorld(block.getWorld())) {
-			List<Player> players = block.getWorld().getPlayers();
-			for(Player otherPlayer : players) {
-				// Ignore players in creative or spectator mode to avoid users from checking if someone is spectating near them
-				if(otherPlayer.getGameMode() == GameMode.CREATIVE || otherPlayer.getGameMode() == GameMode.SPECTATOR) {
-					continue;
-				}
-
-				Location location = otherPlayer.getLocation();
-				if(!otherPlayer.equals(player) && location.distanceSquared(block.getLocation()) < 9 && player.canSee(otherPlayer)) {
-					GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerTooCloseForFire2);
-					placeEvent.setCancelled(true);
-					return;
-				}
-			}
-		}
 
 		//don't track in worlds where claims are not enabled
 		if(!GriefPrevention.instance.claimsEnabledForWorld(placeEvent.getBlock().getWorld())) return;
@@ -230,12 +202,6 @@ public class BlockEventHandler implements Listener {
 		Claim claim = this.dataStore.getClaimAt(block.getLocation(), true, playerData.lastClaim);
 		if(claim != null) {
 			playerData.lastClaim = claim;
-
-			//warn about TNT not destroying claimed blocks
-			if(block.getType() == Material.TNT && !claim.areExplosivesAllowed && playerData.siegeData == null) {
-				GriefPrevention.sendMessage(player, TextMode.Warn, Messages.NoTNTDamageClaims);
-				GriefPrevention.sendMessage(player, TextMode.Instr, Messages.ClaimExplosivesAdvertisement);
-			}
 
 			//if the player has permission for the claim and he's placing UNDER the claim
 			if(block.getY() <= claim.lesserBoundaryCorner.getBlockY() && claim.allowBuild(player, block.getType()) == null) {
@@ -362,12 +328,12 @@ public class BlockEventHandler implements Listener {
 			}
 		}
 
+		// TODO
 		//warn players when they place TNT above sea level, since it doesn't destroy blocks there
 		if(GriefPrevention.instance.config_blockSurfaceOtherExplosions && block.getType() == Material.TNT &&
 				block.getWorld().getEnvironment() != Environment.NETHER &&
 				block.getY() > GriefPrevention.instance.getSeaLevel(block.getWorld()) - 5 &&
-				claim == null &&
-				playerData.siegeData == null) {
+				claim == null) {
 			GriefPrevention.sendMessage(player, TextMode.Warn, Messages.NoTNTDamageAboveSeaLevel);
 		}
 

@@ -18,7 +18,6 @@
 
 package com.github.xt449.griefproventionlight;
 
-import com.github.xt449.griefproventionlight.events.PreventPvPEvent;
 import com.github.xt449.griefproventionlight.events.ProtectDeathDropsEvent;
 import org.bukkit.*;
 import org.bukkit.World.Environment;
@@ -262,14 +261,6 @@ public class EntityEventHandler implements Listener {
 				continue;
 			}
 
-			//if claim is under siege, allow soft blocks to be destroyed
-			if(claim != null && claim.siegeData != null) {
-				Material material = block.getType();
-				boolean breakable = GriefPrevention.instance.config_siege_blocks.contains(material);
-
-				if(breakable) continue;
-			}
-
 			//if no, then also consider surface rules
 			if(claim == null) {
 				if(!applySurfaceRules || block.getLocation().getBlockY() < GriefPrevention.instance.getSeaLevel(world) - 7) {
@@ -383,20 +374,12 @@ public class EntityEventHandler implements Listener {
 		Player player = (Player) entity;
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 
-		//if involved in a siege
-		if(playerData.siegeData != null) {
-			//end it, with the dieing player being the loser
-			this.dataStore.endSiege(playerData.siegeData, null, player.getName(), event.getDrops());
-		}
-
 		//FEATURE: lock dropped items to player who dropped them
 
 		World world = entity.getWorld();
 
 		//decide whether or not to apply this feature to this situation (depends on the world where it happens)
-		boolean isPvPWorld = GriefPrevention.instance.pvpRulesApply(world);
-		if((isPvPWorld && GriefPrevention.instance.config_lockDeathDropsInPvpWorlds) ||
-				(!isPvPWorld && GriefPrevention.instance.config_lockDeathDropsInNonPvpWorlds)) {
+		if(GriefPrevention.instance.config_lockDeathDropsInPvpWorlds) {
 			Claim claim = this.dataStore.getClaimAt(player.getLocation(), false, playerData.lastClaim);
 			ProtectDeathDropsEvent protectionEvent = new ProtectDeathDropsEvent(claim);
 			Bukkit.getPluginManager().callEvent(protectionEvent);
@@ -585,26 +568,6 @@ public class EntityEventHandler implements Listener {
 			}
 		}
 
-		//protect pets from environmental damage types which could be easily caused by griefers
-		if(event.getEntity() instanceof Tameable && !GriefPrevention.instance.pvpRulesApply(event.getEntity().getWorld())) {
-			Tameable tameable = (Tameable) event.getEntity();
-			if(tameable.isTamed()) {
-				DamageCause cause = event.getCause();
-				if(cause != null && (
-						cause == DamageCause.ENTITY_EXPLOSION ||
-								cause == DamageCause.FALLING_BLOCK ||
-								cause == DamageCause.FIRE ||
-								cause == DamageCause.FIRE_TICK ||
-								cause == DamageCause.LAVA ||
-								cause == DamageCause.SUFFOCATION ||
-								cause == DamageCause.CONTACT ||
-								cause == DamageCause.DROWNING)) {
-					event.setCancelled(true);
-					return;
-				}
-			}
-		}
-
 		//the rest is only interested in entities damaging entities (ignoring environmental damage)
 		if(!(event instanceof EntityDamageByEntityEvent)) return;
 
@@ -638,108 +601,6 @@ public class EntityEventHandler implements Listener {
 					}
 				}
 			}
-
-			//protect players from lingering potion damage when protected from pvp
-			if(damageSource.getType() == EntityType.AREA_EFFECT_CLOUD && event.getEntityType() == EntityType.PLAYER && GriefPrevention.instance.pvpRulesApply(event.getEntity().getWorld())) {
-				Player damaged = (Player) event.getEntity();
-				PlayerData damagedData = GriefPrevention.instance.dataStore.getPlayerData(damaged.getUniqueId());
-
-				//case 1: recently spawned
-				if(GriefPrevention.instance.config_pvp_protectFreshSpawns && damagedData.pvpImmune) {
-					event.setCancelled(true);
-					return;
-				}
-
-				//case 2: in a pvp safe zone
-				else {
-					Claim damagedClaim = GriefPrevention.instance.dataStore.getClaimAt(damaged.getLocation(), false, damagedData.lastClaim);
-					if(damagedClaim != null) {
-						damagedData.lastClaim = damagedClaim;
-						if(GriefPrevention.instance.claimIsPvPSafeZone(damagedClaim)) {
-							PreventPvPEvent pvpEvent = new PreventPvPEvent(damagedClaim);
-							Bukkit.getPluginManager().callEvent(pvpEvent);
-							if(!pvpEvent.isCancelled()) {
-								event.setCancelled(true);
-							}
-							return;
-						}
-					}
-				}
-			}
-		}
-
-		//if the attacker is a firework from a crossbow by a player and defender is a player (nonpvp)
-		if(firework != null && event.getEntityType() == EntityType.PLAYER && !GriefPrevention.instance.pvpRulesApply(attacker.getWorld())) {
-			Player defender = (Player) (event.getEntity());
-			if(attacker != defender) {
-				event.setCancelled(true);
-				return;
-			}
-		}
-
-
-		//if the attacker is a player and defender is a player (pvp combat)
-		if(attacker != null && event.getEntityType() == EntityType.PLAYER && GriefPrevention.instance.pvpRulesApply(attacker.getWorld())) {
-			//FEATURE: prevent pvp in the first minute after spawn, and prevent pvp when one or both players have no inventory
-
-			Player defender = (Player) (event.getEntity());
-
-			if(attacker != defender) {
-				PlayerData defenderData = this.dataStore.getPlayerData(event.getEntity().getUniqueId());
-				PlayerData attackerData = this.dataStore.getPlayerData(attacker.getUniqueId());
-
-				//otherwise if protecting spawning players
-				if(GriefPrevention.instance.config_pvp_protectFreshSpawns) {
-					if(defenderData.pvpImmune) {
-						event.setCancelled(true);
-						if(sendErrorMessagesToPlayers)
-							GriefPrevention.sendMessage(attacker, TextMode.Err, Messages.ThatPlayerPvPImmune);
-						return;
-					}
-
-					if(attackerData.pvpImmune) {
-						event.setCancelled(true);
-						if(sendErrorMessagesToPlayers)
-							GriefPrevention.sendMessage(attacker, TextMode.Err, Messages.CantFightWhileImmune);
-						return;
-					}
-				}
-
-				//FEATURE: prevent players from engaging in PvP combat inside land claims (when it's disabled)
-				if(GriefPrevention.instance.config_pvp_noCombatInPlayerLandClaims || GriefPrevention.instance.config_pvp_noCombatInAdminLandClaims) {
-					Claim attackerClaim = this.dataStore.getClaimAt(attacker.getLocation(), false, attackerData.lastClaim);
-					if(!attackerData.ignoreClaims) {
-						if(attackerClaim != null && //ignore claims mode allows for pvp inside land claims
-								!attackerData.inPvpCombat() &&
-								GriefPrevention.instance.claimIsPvPSafeZone(attackerClaim)) {
-							attackerData.lastClaim = attackerClaim;
-							PreventPvPEvent pvpEvent = new PreventPvPEvent(attackerClaim);
-							Bukkit.getPluginManager().callEvent(pvpEvent);
-							if(!pvpEvent.isCancelled()) {
-								event.setCancelled(true);
-								if(sendErrorMessagesToPlayers)
-									GriefPrevention.sendMessage(attacker, TextMode.Err, Messages.CantFightWhileImmune);
-							}
-							return;
-						}
-
-						Claim defenderClaim = this.dataStore.getClaimAt(defender.getLocation(), false, defenderData.lastClaim);
-						if(defenderClaim != null &&
-								!defenderData.inPvpCombat() &&
-								GriefPrevention.instance.claimIsPvPSafeZone(defenderClaim)) {
-							defenderData.lastClaim = defenderClaim;
-							PreventPvPEvent pvpEvent = new PreventPvPEvent(defenderClaim);
-							Bukkit.getPluginManager().callEvent(pvpEvent);
-							if(!pvpEvent.isCancelled()) {
-								event.setCancelled(true);
-								if(sendErrorMessagesToPlayers)
-									GriefPrevention.sendMessage(attacker, TextMode.Err, Messages.PlayerInPvPSafeZone);
-							}
-							return;
-						}
-					}
-				}
-			}
 		}
 
 		if(event instanceof EntityDamageByEntityEvent) {
@@ -757,24 +618,7 @@ public class EntityEventHandler implements Listener {
 					if(pet.isTamed() && pet.getOwner() != null) {
 						//if defender is NOT in pvp combat and not immune to pvp right now due to recent respawn
 						PlayerData defenderData = GriefPrevention.instance.dataStore.getPlayerData(event.getEntity().getUniqueId());
-						if(!defenderData.pvpImmune && !defenderData.inPvpCombat()) {
-							//if defender is not in a protected area
-							Claim defenderClaim = this.dataStore.getClaimAt(defender.getLocation(), false, defenderData.lastClaim);
-							if(defenderClaim != null &&
-									!defenderData.inPvpCombat() &&
-									GriefPrevention.instance.claimIsPvPSafeZone(defenderClaim)) {
-								defenderData.lastClaim = defenderClaim;
-								PreventPvPEvent pvpEvent = new PreventPvPEvent(defenderClaim);
-								Bukkit.getPluginManager().callEvent(pvpEvent);
 
-								//if other plugins aren't making an exception to the rule
-								if(!pvpEvent.isCancelled()) {
-									event.setCancelled(true);
-									if(damager instanceof Creature) ((Creature) damager).setTarget(null);
-								}
-								return;
-							}
-						}
 					}
 				}
 			}
@@ -843,31 +687,7 @@ public class EntityEventHandler implements Listener {
 							if(attackerData.ignoreClaims) return;
 
 							//otherwise disallow in non-pvp worlds (and also pvp worlds if configured to do so)
-							if(!GriefPrevention.instance.pvpRulesApply(subEvent.getEntity().getLocation().getWorld()) || (GriefPrevention.instance.config_pvp_protectPets && subEvent.getEntityType() != EntityType.WOLF)) {
-								OfflinePlayer owner = GriefPrevention.instance.getServer().getOfflinePlayer(ownerID);
-								String ownerName = owner.getName();
-								if(ownerName == null) ownerName = "someone";
-								String message = GriefPrevention.instance.dataStore.getMessage(Messages.NoDamageClaimedEntity, ownerName);
-								if(attacker.hasPermission("griefprevention.ignoreclaims"))
-									message += "  " + GriefPrevention.instance.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
-								if(sendErrorMessagesToPlayers)
-									GriefPrevention.sendMessage(attacker, TextMode.Err, message);
-								PreventPvPEvent pvpEvent = new PreventPvPEvent(new Claim(subEvent.getEntity().getLocation(), subEvent.getEntity().getLocation(), null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null));
-								Bukkit.getPluginManager().callEvent(pvpEvent);
-								if(!pvpEvent.isCancelled()) {
-									event.setCancelled(true);
-								}
-								return;
-							}
-							//and disallow if attacker is pvp immune
-							else if(attackerData.pvpImmune) {
-								event.setCancelled(true);
-								if(sendErrorMessagesToPlayers)
-									GriefPrevention.sendMessage(attacker, TextMode.Err, Messages.CantFightWhileImmune);
-								return;
-							}
-							// disallow players attacking tamed wolves (dogs) unless under attack by said wolf
-							else if(tameable.getType() == EntityType.WOLF) {
+							if(tameable.getType() == EntityType.WOLF) {
 								if(!tameable.getOwner().equals(attacker)) {
 									if(tameable.getTarget() != null) {
 										if(tameable.getTarget() == attacker) return;
@@ -985,9 +805,6 @@ public class EntityEventHandler implements Listener {
 		if(event.getDamage() == 0) return;
 
 		EntityDamageByEntityEvent subEvent = (EntityDamageByEntityEvent) event;
-
-		//if not in a pvp rules world, do nothing
-		if(!GriefPrevention.instance.pvpRulesApply(defender.getWorld())) return;
 
 		//determine which player is attacking, if any
 		Player attacker = null;
@@ -1138,50 +955,6 @@ public class EntityEventHandler implements Listener {
 								GriefPrevention.sendMessage(thrower, TextMode.Err, Messages.NoDamageClaimedEntity, claim.getOwnerName());
 								return;
 							}
-						}
-					}
-				}
-			}
-
-			//Otherwise, ignore potions not thrown by players
-			if(thrower == null) return;
-
-			//otherwise, no restrictions for positive effects
-			if(positiveEffects.contains(effectType)) continue;
-
-			for(LivingEntity effected : event.getAffectedEntities()) {
-				//always impact the thrower
-				if(effected == thrower) continue;
-
-				//always impact non players
-				if(effected.getType() != EntityType.PLAYER) continue;
-
-					//otherwise if in no-pvp zone, stop effect
-					//FEATURE: prevent players from engaging in PvP combat inside land claims (when it's disabled)
-				else if(GriefPrevention.instance.config_pvp_noCombatInPlayerLandClaims || GriefPrevention.instance.config_pvp_noCombatInAdminLandClaims) {
-					Player effectedPlayer = (Player) effected;
-					PlayerData defenderData = this.dataStore.getPlayerData(effectedPlayer.getUniqueId());
-					PlayerData attackerData = this.dataStore.getPlayerData(thrower.getUniqueId());
-					Claim attackerClaim = this.dataStore.getClaimAt(thrower.getLocation(), false, attackerData.lastClaim);
-					if(attackerClaim != null && GriefPrevention.instance.claimIsPvPSafeZone(attackerClaim)) {
-						attackerData.lastClaim = attackerClaim;
-						PreventPvPEvent pvpEvent = new PreventPvPEvent(attackerClaim);
-						Bukkit.getPluginManager().callEvent(pvpEvent);
-						if(!pvpEvent.isCancelled()) {
-							event.setIntensity(effected, 0);
-							GriefPrevention.sendMessage(thrower, TextMode.Err, Messages.CantFightWhileImmune);
-						}
-						continue;
-					}
-
-					Claim defenderClaim = this.dataStore.getClaimAt(effectedPlayer.getLocation(), false, defenderData.lastClaim);
-					if(defenderClaim != null && GriefPrevention.instance.claimIsPvPSafeZone(defenderClaim)) {
-						defenderData.lastClaim = defenderClaim;
-						PreventPvPEvent pvpEvent = new PreventPvPEvent(defenderClaim);
-						Bukkit.getPluginManager().callEvent(pvpEvent);
-						if(!pvpEvent.isCancelled()) {
-							event.setIntensity(effected, 0);
-							GriefPrevention.sendMessage(thrower, TextMode.Err, Messages.PlayerInPvPSafeZone);
 						}
 					}
 				}

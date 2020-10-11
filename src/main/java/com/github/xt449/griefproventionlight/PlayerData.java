@@ -22,7 +22,6 @@ import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 
 import java.net.InetAddress;
-import java.util.Calendar;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,8 +77,6 @@ public class PlayerData {
 	//visualization
 	public Visualization currentVisualization = null;
 
-	//anti-camping pvp protection
-	public boolean pvpImmune = false;
 	public long lastSpawn = 0;
 
 	//ignore claims mode
@@ -87,9 +84,6 @@ public class PlayerData {
 
 	//the last claim this player was in, that we know of
 	public Claim lastClaim = null;
-
-	//siege
-	public SiegeData siegeData = null;
 
 	//pvp
 	public long lastPvpTimestamp = 0;
@@ -129,23 +123,6 @@ public class PlayerData {
 
 	//profanity warning, once per play session
 	boolean profanityWarned = false;
-
-	//whether or not this player is "in" pvp combat
-	public boolean inPvpCombat() {
-		if(this.lastPvpTimestamp == 0) return false;
-
-		long now = Calendar.getInstance().getTimeInMillis();
-
-		long elapsed = now - this.lastPvpTimestamp;
-
-		if(elapsed > GriefPrevention.instance.config_pvp_combatTimeoutSeconds * 1000) //X seconds
-		{
-			this.lastPvpTimestamp = 0;
-			return false;
-		}
-
-		return true;
-	}
 
 	//the number of claim blocks a player has available for claiming land
 	public int getRemainingClaimBlocks() {
