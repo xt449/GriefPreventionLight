@@ -1578,7 +1578,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			if(claim == null) {
 				sendMessage(player, TextMode.Err, Messages.DeleteClaimMissing);
 			} else {
-				String noBuildReason = claim.allowBuild(player, Material.STONE);
+				String noBuildReason = claim.allowBuild(player);
 				if(noBuildReason != null) {
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 					return true;
@@ -1928,7 +1928,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			}
 
 			//if the player isn't in a claim or has permission to build, tell him to man up
-			if(claim == null || claim.allowBuild(player, Material.AIR) == null) {
+			if(claim == null || claim.allowBuild(player) == null) {
 				sendMessage(player, TextMode.Err, Messages.NotTrappedHere);
 				return true;
 			}
@@ -2325,7 +2325,7 @@ public class GriefPreventionLight extends JavaPlugin {
 						errorMessage = claim.allowContainers(player);
 						break;
 					default:
-						errorMessage = claim.allowBuild(player, Material.AIR);
+						errorMessage = claim.allowBuild(player);
 				}
 			}
 
@@ -2615,23 +2615,19 @@ public class GriefPreventionLight extends JavaPlugin {
 	}
 
 	public String allowBuild(Player player, Location location) {
-		return this.allowBuild(player, location, location.getBlock().getType());
-	}
-
-	public String allowBuild(Player player, Location location, Material material) {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 		Claim claim = this.dataStore.getClaimAt(location, playerData.lastClaim);
 
-		//exception: administrators in ignore claims mode
-		if(playerData.ignoreClaims) return null;
+		//exception: administrators in ignore claims mode or wilderness
+		if(playerData.ignoreClaims || claim == null) return null;
 
 		//if not in the wilderness, then apply claim rules (permissions, etc)
 		else {
 			//cache the claim for later reference
 			playerData.lastClaim = claim;
-			return claim.allowBuild(player, material);
+			return claim.allowBuild(player);
 		}
 	}
 
@@ -2645,14 +2641,14 @@ public class GriefPreventionLight extends JavaPlugin {
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 		Claim claim = this.dataStore.getClaimAt(location, playerData.lastClaim);
 
-		//exception: administrators in ignore claims mode
+		//exception: administrators in ignore claims mode or wilderness
 		if(playerData.ignoreClaims || claim == null) return null;
 
 		//cache the claim for later reference
 		playerData.lastClaim = claim;
 
 		//if not in the wilderness, then apply claim rules (permissions, etc)
-		String cancel = claim.allowBreak(player, block.getType());
+		String cancel = claim.allowBreak(player);
 		if(cancel != null && breakEvent != null) {
 			PreventBlockBreakEvent preventionEvent = new PreventBlockBreakEvent(breakEvent);
 			Bukkit.getPluginManager().callEvent(preventionEvent);

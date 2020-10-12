@@ -67,7 +67,7 @@ public class EntityEventHandler implements Listener {
 		Entity entity = event.getEntity();
 		if(entity.getType() == EntityType.PLAYER) {
 			Player player = (Player) event.getEntity();
-			String noBuildReason = GriefPreventionLight.instance.allowBuild(player, event.getBlock().getLocation(), event.getNewState().getType());
+			String noBuildReason = GriefPreventionLight.instance.allowBuild(player, event.getBlock().getLocation());
 			if(noBuildReason != null) {
 				event.setCancelled(true);
 			}
@@ -419,7 +419,7 @@ public class EntityEventHandler implements Listener {
 
 		//if the player doesn't have build permission, don't allow the breakage
 		Player playerRemover = (Player) entityEvent.getRemover();
-		String noBuildReason = GriefPreventionLight.instance.allowBuild(playerRemover, event.getEntity().getLocation(), Material.AIR);
+		String noBuildReason = GriefPreventionLight.instance.allowBuild(playerRemover, event.getEntity().getLocation());
 		if(noBuildReason != null) {
 			event.setCancelled(true);
 			GriefPreventionLight.sendMessage(playerRemover, TextMode.Err, noBuildReason);
@@ -435,7 +435,7 @@ public class EntityEventHandler implements Listener {
 		//FEATURE: similar to above, placing a painting requires build permission in the claim
 
 		//if the player doesn't have permission, don't allow the placement
-		String noBuildReason = GriefPreventionLight.instance.allowBuild(event.getPlayer(), event.getEntity().getLocation(), Material.PAINTING);
+		String noBuildReason = GriefPreventionLight.instance.allowBuild(event.getPlayer(), event.getEntity().getLocation());
 		if(noBuildReason != null) {
 			event.setCancelled(true);
 			GriefPreventionLight.sendMessage(event.getPlayer(), TextMode.Err, noBuildReason);
@@ -605,7 +605,7 @@ public class EntityEventHandler implements Listener {
 					}
 
 					//otherwise player must have container trust in the claim
-					String failureReason = claim.allowBuild(attacker, Material.AIR);
+					String failureReason = claim.allowBuild(attacker);
 					if(failureReason != null) {
 						event.setCancelled(true);
 						if(sendErrorMessagesToPlayers)

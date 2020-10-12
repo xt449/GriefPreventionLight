@@ -22,13 +22,10 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.World.Environment;
-import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
-import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -250,12 +247,8 @@ public class Claim {
 			Material.NETHER_WART,
 			Material.BEETROOTS);
 
-	private static boolean placeableForFarming(Material material) {
-		return PLACEABLE_FARMING_BLOCKS.contains(material);
-	}
-
 	//build permission check
-	public String allowBuild(Player player, Material material) {
+	public String allowBuild(Player player) {
 		//if we don't know who's asking, always say no (i've been told some mods can make this happen somehow)
 		if(player == null) return "";
 
@@ -279,10 +272,7 @@ public class Claim {
 
 		//allow for farming with /containertrust permission
 		if(this.allowContainers(player) == null) {
-			//do allow for farming, if player has /containertrust permission
-			if(placeableForFarming(material)) {
-				return null;
-			}
+			return null;
 		}
 
 		//subdivision permission inheritance
@@ -290,7 +280,7 @@ public class Claim {
 			if(player.getUniqueId().equals(this.parent.ownerID))
 				return null;
 			if(!inheritNothing)
-				return this.parent.allowBuild(player, material);
+				return this.parent.allowBuild(player);
 		}
 
 		//failure message for all other cases
@@ -328,10 +318,10 @@ public class Claim {
 	}
 
 	//break permission check
-	public String allowBreak(Player player, Material material) {
+	public String allowBreak(Player player) {
 
 		//if not under siege, build rules apply
-		return this.allowBuild(player, material);
+		return this.allowBuild(player);
 	}
 
 	//access permission check

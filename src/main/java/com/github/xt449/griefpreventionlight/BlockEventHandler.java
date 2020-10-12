@@ -96,7 +96,7 @@ public class BlockEventHandler implements Listener {
 
 		if(player == null || sign == null) return;
 
-		String noBuildReason = GriefPreventionLight.instance.allowBuild(player, sign.getLocation(), sign.getType());
+		String noBuildReason = GriefPreventionLight.instance.allowBuild(player, sign.getLocation());
 		if(noBuildReason != null) {
 			GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 			event.setCancelled(true);
@@ -155,7 +155,7 @@ public class BlockEventHandler implements Listener {
 
 		//make sure the player is allowed to build at the location
 		for(BlockState block : placeEvent.getReplacedBlockStates()) {
-			String noBuildReason = GriefPreventionLight.instance.allowBuild(player, block.getLocation(), block.getType());
+			String noBuildReason = GriefPreventionLight.instance.allowBuild(player, block.getLocation());
 			if(noBuildReason != null) {
 				GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 				placeEvent.setCancelled(true);
@@ -175,7 +175,7 @@ public class BlockEventHandler implements Listener {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(placeEvent.getBlock().getWorld())) return;
 
 		//make sure the player is allowed to build at the location
-		String noBuildReason = GriefPreventionLight.instance.allowBuild(player, block.getLocation(), block.getType());
+		String noBuildReason = GriefPreventionLight.instance.allowBuild(player, block.getLocation());
 		if(noBuildReason != null) {
 			// Allow players with container trust to place books in lecterns
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
@@ -547,7 +547,7 @@ public class BlockEventHandler implements Listener {
 				ProjectileSource shooter = ((Projectile) igniteEvent.getIgnitingEntity()).getShooter();
 
 				// Allow ignition if arrow was shot by a player with build permission.
-				if(shooter instanceof Player && claim.allowBuild((Player) shooter, Material.TNT) == null) return;
+				if(shooter instanceof Player && claim.allowBuild((Player) shooter) == null) return;
 
 				// Allow ignition if arrow was shot by a dispenser in the same claim.
 				if(shooter instanceof BlockProjectileSource &&
