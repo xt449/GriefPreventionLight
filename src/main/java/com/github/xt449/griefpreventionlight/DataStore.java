@@ -423,14 +423,13 @@ public abstract class DataStore {
 		//split the input string on the space
 		String[] elements = string.split(locationStringDelimiter);
 
-		//expect four elements - world name, X, Y, and Z, respectively
-		if(elements.length < 4) {
-			throw new Exception("Expected four distinct parts to the location string: \"" + string + "\"");
+		//expect four elements - world name, X, and Z, respectively
+		if(elements.length < 3) {
+			throw new Exception("Expected three distinct parts to the location string: \"" + string + "\"");
 		}
 
 		String worldName = elements[0];
 		String xString = elements[1];
-		String yString = elements[2];
 		String zString = elements[3];
 
 		//identify world the claim is in
@@ -448,10 +447,9 @@ public abstract class DataStore {
 
 		//convert those numerical strings to integer values
 		int x = Integer.parseInt(xString);
-		int y = Integer.parseInt(yString);
 		int z = Integer.parseInt(zString);
 
-		return new Location(world, x, y, z);
+		return new Location(world, x, 0, z);
 	}
 
 	//saves any changes to a claim to secondary storage
