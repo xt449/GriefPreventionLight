@@ -430,7 +430,7 @@ public abstract class DataStore {
 
 		String worldName = elements[0];
 		String xString = elements[1];
-		String zString = elements[3];
+		String zString = elements[2];
 
 		//identify world the claim is in
 		World world = null;
