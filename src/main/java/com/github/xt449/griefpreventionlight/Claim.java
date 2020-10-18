@@ -368,10 +368,8 @@ public class Claim {
 		if(player.getUniqueId().equals(this.ownerID) || GriefPreventionLight.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims)
 			return null;
 
-		//admin claims need adminclaims permission only.
-		if(this.isAdminClaim()) {
-			if(player.hasPermission("griefprevention.adminclaims")) return null;
-		}
+		//admin claims can be accessed by everyone.
+		if(this.isAdminClaim()) return null;
 
 		//check for explicit individual container or build permission
 		if(this.hasExplicitPermission(player, ClaimPermission.Inventory)) return null;
