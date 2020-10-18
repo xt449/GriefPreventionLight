@@ -1761,7 +1761,7 @@ class PlayerEventHandler implements Listener {
 				GriefPreventionLight.sendMessage(player, TextMode.Instr, Messages.ClaimStart);
 
 				//show him where he's working
-				Claim newClaim = new Claim(playerData.lastClaim.world, new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
+				Claim newClaim = new Claim(playerData.lastShovelLocation.getWorld(), new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
 				Visualization visualization = Visualization.FromClaim(newClaim, clickedBlock.getY(), VisualizationType.RestoreNature, player.getLocation());
 
 				// alert plugins of a visualization

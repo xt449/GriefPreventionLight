@@ -300,23 +300,23 @@ public class EntityEventHandler implements Listener {
 		}
 	}
 
-	//when a creature spawns...
-	@EventHandler(priority = EventPriority.LOWEST)
-	public void onEntitySpawn(CreatureSpawnEvent event) {
-		//chicken eggs and breeding could potentially make a mess in the wilderness, once griefers get involved
-		SpawnReason reason = event.getSpawnReason();
-		if(reason != SpawnReason.SPAWNER_EGG && reason != SpawnReason.BUILD_IRONGOLEM && reason != SpawnReason.BUILD_SNOWMAN && event.getEntityType() != EntityType.ARMOR_STAND) {
-			event.setCancelled(true);
-			return;
-		}
-
-		//otherwise, just apply the limit on total entities per claim (and no spawning in the wilderness!)
-		Claim claim = this.dataStore.getClaimAt(event.getLocation(), null);
-		if(claim == null || claim.allowMoreEntities(true) != null) {
-			event.setCancelled(true);
-			return;
-		}
-	}
+//	//when a creature spawns...
+//	@EventHandler(priority = EventPriority.LOWEST)
+//	public void onEntitySpawn(CreatureSpawnEvent event) {
+//		//chicken eggs and breeding could potentially make a mess in the wilderness, once griefers get involved
+//		SpawnReason reason = event.getSpawnReason();
+//		if(reason != SpawnReason.SPAWNER_EGG && reason != SpawnReason.BUILD_IRONGOLEM && reason != SpawnReason.BUILD_SNOWMAN && event.getEntityType() != EntityType.ARMOR_STAND) {
+//			event.setCancelled(true);
+//			return;
+//		}
+//
+//		//otherwise, just apply the limit on total entities per claim (and no spawning in the wilderness!)
+//		Claim claim = this.dataStore.getClaimAt(event.getLocation(), null);
+//		if(claim == null || claim.allowMoreEntities(true) != null) {
+//			event.setCancelled(true);
+//			return;
+//		}
+//	}
 
 	//when an entity dies...
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
