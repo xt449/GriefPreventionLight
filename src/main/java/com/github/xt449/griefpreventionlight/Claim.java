@@ -79,9 +79,6 @@ public class Claim {
 	//note subdivisions themselves never have children
 	public ArrayList<Claim> children = new ArrayList<>();
 
-	//following a siege, buttons/levers are unlocked temporarily.  this represents that state
-	public boolean doorsOpen = false;
-
 	//whether or not this is an administrative claim
 	//administrative claims are created and maintained by players with the griefprevention.adminclaims permission.
 	public boolean isAdminClaim() {
@@ -93,14 +90,6 @@ public class Claim {
 	//accessor for ID
 	public Long getID() {
 		return this.id;
-	}
-
-	//players may only siege someone when he's not in an admin claim
-	//and when he has some level of permission in the claim
-	public boolean canSiege(Player defender) {
-		if(this.isAdminClaim()) return false;
-
-		return this.allowAccess(defender) == null;
 	}
 
 	//main constructor.  note that only creating a claim instance does nothing - a claim must be added to the data store to be effective
@@ -160,7 +149,6 @@ public class Claim {
 		this.parent = claim.parent;
 		this.inheritNothing = claim.inheritNothing;
 		this.children = new ArrayList<>(claim.children);
-		this.doorsOpen = claim.doorsOpen;
 	}
 
 	//measurements.  all measurements are in blocks
@@ -219,10 +207,8 @@ public class Claim {
 			if(player.hasPermission("griefprevention.deleteclaims")) return null;
 		}
 
-		//no resizing, deleting, and so forth while under siege
+		//owners can do anything
 		if(player.getUniqueId().equals(this.ownerID)) {
-
-			//otherwise, owners can do whatever
 			return null;
 		}
 
@@ -311,20 +297,13 @@ public class Claim {
 
 	//break permission check
 	public String allowBreak(Player player) {
-
-		//if not under siege, build rules apply
 		return this.allowBuild(player);
 	}
 
 	//access permission check
 	public String allowAccess(Player player) {
-		//following a siege where the defender lost, the claim will allow everyone access for a time
-		if(this.doorsOpen) return null;
-
-		//admin claims need adminclaims permission only.
-		if(this.isAdminClaim()) {
-			if(player.hasPermission("griefprevention.adminclaims")) return null;
-		}
+		//admin claims grant access to everyone
+		if(this.isAdminClaim()) return null;
 
 		//claim owner and admins in ignoreclaims mode have access
 		if(player.getUniqueId().equals(this.ownerID) || GriefPreventionLight.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims)
@@ -360,8 +339,10 @@ public class Claim {
 		if(player.getUniqueId().equals(this.ownerID) || GriefPreventionLight.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims)
 			return null;
 
-		//admin claims can be accessed by everyone.
-		if(this.isAdminClaim()) return null;
+		//admin claims need adminclaims permission only.
+		if(this.isAdminClaim()) {
+			if(player.hasPermission("griefprevention.adminclaims")) return null;
+		}
 
 		//check for explicit individual container or build permission
 		if(this.hasExplicitPermission(player, ClaimPermission.Inventory)) return null;

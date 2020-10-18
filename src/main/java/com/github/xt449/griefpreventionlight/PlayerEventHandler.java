@@ -73,6 +73,19 @@ class PlayerEventHandler implements Listener {
 	//spam tracker
 	SpamDetector spamDetector = new SpamDetector();
 
+	Set<Material> spawn_eggs = new HashSet<>();
+	Set<Material> dyes = new HashSet<>();
+
+	{
+		for(Material material : Material.values()) {
+			if(material.isLegacy()) continue;
+			if(material.name().endsWith("_SPAWN_EGG"))
+				spawn_eggs.add(material);
+			else if(material.name().endsWith("_DYE"))
+				dyes.add(material);
+		}
+	}
+
 	//typical constructor, yawn
 	PlayerEventHandler(DataStore dataStore, GriefPreventionLight plugin) {
 		this.dataStore = dataStore;
@@ -1347,17 +1360,10 @@ class PlayerEventHandler implements Listener {
 			ItemStack itemInHand = instance.getItemInHand(player, hand);
 			Material materialInHand = itemInHand.getType();
 
-			Set<Material> spawn_eggs = new HashSet<>();
-			Set<Material> dyes = new HashSet<>();
-
-			for(Material material : Material.values()) {
-				if(material.isLegacy()) continue;
-				if(material.name().endsWith("_SPAWN_EGG"))
-					spawn_eggs.add(material);
-				else if(material.name().endsWith("_DYE"))
-					dyes.add(material);
+			// Allow placing boats in any claim
+			if(Tag.ITEMS_BOATS.isTagged(materialInHand)) {
+				return;
 			}
-
 
 			//if it's bonemeal, armor stand, spawn egg, etc - check for build permission //RoboMWM: also check flint and steel to stop TNT ignition
 			if(clickedBlock != null && (materialInHand == Material.BONE_MEAL
