@@ -92,21 +92,6 @@ commands:
     usage: /AdminClaims
     permission: griefprevention.adminclaims
     aliases: ac
-  restorenature:
-    description: Switches the shovel tool to restoration mode.
-    usage: /RestoreNature
-    permission: griefprevention.restorenature
-    aliases: rn
-  restorenatureaggressive:
-    description: Switches the shovel tool to aggressive restoration mode.
-    usage: /RestoreNatureAggressive
-    permission: griefprevention.restorenatureaggressive
-    aliases: rna
-  restorenaturefill:
-    description: Switches the shovel tool to fill mode.
-    usage: /RestoreNatureFill <radius>
-    permission: griefprevention.restorenatureaggressive
-    aliases: rnf
   basicclaims:
     description: Switches the shovel tool back to basic claims mode.
     usage: /BasicClaims
@@ -122,16 +107,6 @@ commands:
     usage: /Claim [optional radius]
     aliases: [createclaim, makeclaim, newclaim]
     permission: griefprevention.claims
-  buyclaimblocks:
-    description: Purchases additional claim blocks with server money.  Doesn't work on servers without a Vault-compatible economy plugin.
-    usage: /BuyClaimBlocks <numberOfBlocks>
-    aliases: buyclaim
-    permission: griefprevention.buysellclaimblocks
-  sellclaimblocks:
-    description: Sells your claim blocks for server money.  Doesn't work on servers without a Vault-compatible economy plugin.
-    usage: /SellClaimBlocks <numberOfBlocks>
-    aliases: sellclaim
-    permission: griefprevention.buysellclaimblocks
   trapped:
     description: Ejects you to nearby unclaimed land.  Has a substantial cooldown period.
     usage: /Trapped
@@ -140,10 +115,6 @@ commands:
     description: Lists permissions for the claim you're standing in.
     usage: /TrustList
     permission: griefprevention.claims
-  siege:
-    description: Initiates a siege versus another player.
-    usage: /Siege <playerName>
-    permission: griefprevention.siege
   ignoreclaims:
     description: Toggles ignore claims mode.
     usage: /IgnoreClaims
@@ -226,8 +197,6 @@ permissions:
   griefprevention.admin.*:
     description: Grants all administrative functionality.
     children:
-      griefprevention.restorenature: true
-      griefprevention.restorenatureaggressive: true
       griefprevention.ignoreclaims: true
       griefprevention.adminclaims: true
       griefprevention.adjustclaimblocks: true
@@ -242,7 +211,6 @@ permissions:
       griefprevention.overrideclaimcountlimit: true
       griefprevention.transferclaim: true
       griefprevention.claimslistother: true
-      griefprevention.siegeimmune: true
       griefprevention.separate: true
       griefprevention.eavesdropsigns: true
       griefprevention.claimbook: true
@@ -250,17 +218,10 @@ permissions:
       griefprevention.seeinactivity: true
       griefprevention.eavesdropimmune: true
       griefprevention.deleteclaimsinworld: true
-      griefprevention.siegeteleport: true
       griefprevention.unlockothersdrops: true
       griefprevention.seeclaimsize: true
-  griefprevention.siegeimmune:
-    description: Makes a player immune to /Siege.
-    default: op
   griefprevention.givepet:
     description: Grants permission to use /GivePet.
-    default: true
-  griefprevention.siege:
-    description: Grants permission to use /Siege.
     default: true
   griefprevention.unlockdrops:
     description: Grants permission to use /UnlockDrops.
@@ -273,9 +234,6 @@ permissions:
     default: true
   griefprevention.claimslistother:
     description: Grants permission to use /ClaimsList to get another player's information.
-    default: op
-  griefprevention.restorenature:
-    description: Grants permission to use /RestoreNature.
     default: op
   griefprevention.transferclaim:
     description: Grants permission to use /TransferClaim.
@@ -322,9 +280,6 @@ permissions:
   griefprevention.claims:
     description: Grants access to claim-related slash commands.
     default: true
-  griefprevention.buysellclaimblocks:
-    description: Grants access to claim block buy/sell commands.
-    default: true
   griefprevention.visualizenearbyclaims:
     description: Allows a player to see all nearby claims at once.
     default: op
@@ -367,6 +322,3 @@ permissions:
   griefprevention.mostaccrued:
     description: Players with this permission can accrue more claim blocks (limit specified in the config file).
     default: false
-  griefprevention.siegeteleport:
-    description: Players with this permission can teleport into and out of besieged areas.
-    default: op
