@@ -257,9 +257,6 @@ public class Claim {
 			if(player.hasPermission("griefprevention.adminclaims")) return null;
 		}
 
-		//no building while in pvp combat
-		PlayerData playerData = GriefPreventionLight.instance.dataStore.getPlayerData(player.getUniqueId());
-
 		//owners can make changes, or admins with ignore claims mode enabled
 		if(player.getUniqueId().equals(this.ownerID) || GriefPreventionLight.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims)
 			return null;
@@ -269,11 +266,6 @@ public class Claim {
 
 		//also everyone is a member of the "public", so check for public permission
 		if(ClaimPermission.Build.isGrantedBy(this.playerIDToClaimPermissionMap.get("public"))) return null;
-
-		//allow for farming with /containertrust permission
-		if(this.allowContainers(player) == null) {
-			return null;
-		}
 
 		//subdivision permission inheritance
 		if(this.parent != null) {
