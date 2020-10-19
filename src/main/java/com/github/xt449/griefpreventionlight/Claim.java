@@ -20,27 +20,19 @@ package com.github.xt449.griefpreventionlight;
 
 import org.bukkit.Chunk;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import java.util.*;
-import java.util.List;
 
 //represents a player claim
 //creating an instance doesn't make an effective claim
 //only claims which have been added to the datastore have any effect
 public class Claim {
-	//two locations, which together define the boundaries of the claim
-	//note that the upper Y value is always ignored, because claims ALWAYS extend up to the sky
-	// TODO
-	//Location lesserBoundaryCorner;
-	//Location greaterBoundaryCorner;
-
-	// TODO
 	final World world;
+	//two locations, which together define the boundaries of the claim
 	Coordinate lesserBoundaryCorner;
 	Coordinate greaterBoundaryCorner;
 
@@ -224,15 +216,6 @@ public class Claim {
 		return GriefPreventionLight.instance.dataStore.getMessage(Messages.OnlyOwnersModifyClaims, this.getOwnerName());
 	}
 
-	private static final Set<Material> PLACEABLE_FARMING_BLOCKS = EnumSet.of(
-			Material.PUMPKIN_STEM,
-			Material.WHEAT,
-			Material.MELON_STEM,
-			Material.CARROTS,
-			Material.POTATOES,
-			Material.NETHER_WART,
-			Material.BEETROOTS);
-
 	//build permission check
 	public String allowBuild(Player player) {
 		//if we don't know who's asking, always say no (i've been told some mods can make this happen somehow)
@@ -400,14 +383,6 @@ public class Claim {
 		return reason;
 	}
 
-	public ClaimPermission getPermission(String playerID) {
-		if(playerID == null || playerID.isEmpty()) {
-			return null;
-		}
-
-		return this.playerIDToClaimPermissionMap.get(playerID.toLowerCase());
-	}
-
 	//grants a permission for a player or the public
 	public void setPermission(String playerID, ClaimPermission permissionLevel) {
 		if(playerID == null || playerID.isEmpty()) {
@@ -485,15 +460,14 @@ public class Claim {
 		if(!location.getWorld().equals(this.world)) return false;
 
 		double x = location.getX();
-		double y = location.getY();
 		double z = location.getZ();
 
 		//main check
-		boolean inClaim = 
+		boolean inClaim =
 				x >= this.lesserBoundaryCorner.getX() &&
-				x < this.greaterBoundaryCorner.getX() + 1 &&
-				z >= this.lesserBoundaryCorner.getZ() &&
-				z < this.greaterBoundaryCorner.getZ() + 1;
+						x < this.greaterBoundaryCorner.getX() + 1 &&
+						z >= this.lesserBoundaryCorner.getZ() &&
+						z < this.greaterBoundaryCorner.getZ() + 1;
 
 		if(!inClaim) return false;
 
@@ -530,9 +504,9 @@ public class Claim {
 		//main check
 		boolean inClaim =
 				x >= this.lesserBoundaryCorner.getX() &&
-				x < this.greaterBoundaryCorner.getX() + 1 &&
-				z >= this.lesserBoundaryCorner.getZ() &&
-				z < this.greaterBoundaryCorner.getZ() + 1;
+						x < this.greaterBoundaryCorner.getX() + 1 &&
+						z >= this.lesserBoundaryCorner.getZ() &&
+						z < this.greaterBoundaryCorner.getZ() + 1;
 
 		if(!inClaim) return false;
 
@@ -585,7 +559,8 @@ public class Claim {
 
 		//determine maximum allowable entity count, based on claim size
 		int maxEntities = this.getArea() / 50;
-		if(maxEntities == 0) return GriefPreventionLight.instance.dataStore.getMessage(Messages.ClaimTooSmallForEntities);
+		if(maxEntities == 0)
+			return GriefPreventionLight.instance.dataStore.getMessage(Messages.ClaimTooSmallForEntities);
 
 		//count current entities (ignoring players)
 		int totalEntities = 0;
@@ -632,22 +607,6 @@ public class Claim {
 			return GriefPreventionLight.instance.dataStore.getMessage(Messages.TooManyActiveBlocksInClaim);
 
 		return null;
-	}
-
-	//implements a strict ordering of claims, used to keep the claims collection sorted for faster searching
-	boolean greaterThan(Claim otherClaim) {
-		Coordinate thisCorner = this.lesserBoundaryCorner;
-		Coordinate otherCorner = otherClaim.lesserBoundaryCorner;
-
-		if(thisCorner.getX() > otherCorner.getX()) return true;
-
-		if(thisCorner.getX() < otherCorner.getX()) return false;
-
-		if(thisCorner.getZ() > otherCorner.getZ()) return true;
-
-		if(thisCorner.getZ() < otherCorner.getZ()) return false;
-
-		return world.getName().compareTo(otherClaim.world.getName()) < 0;
 	}
 
 	public ArrayList<Chunk> getChunks() {

@@ -21,7 +21,6 @@ package com.github.xt449.griefpreventionlight;
 import com.github.xt449.griefpreventionlight.events.PreventBlockBreakEvent;
 import com.github.xt449.griefpreventionlight.events.SaveTrappedPlayerEvent;
 import com.github.xt449.griefpreventionlight.events.TrustChangedEvent;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.BanList.Type;
 import org.bukkit.World.Environment;
@@ -47,7 +46,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class GriefPreventionLight extends JavaPlugin {
 	//for convenience, a reference to the instance of this plugin
@@ -118,10 +116,6 @@ public class GriefPreventionLight extends JavaPlugin {
 
 	public boolean config_claims_lecternReadingRequiresAccessTrust;                    //reading lecterns requires access trust
 
-	public ArrayList<World> config_siege_enabledWorlds;                //whether or not /siege is enabled on this server
-	public Set<Material> config_siege_blocks;                    //which blocks will be breakable in siege mode
-	public int config_siege_doorsOpenSeconds;  // how before claim is re-secured after siege win
-	public int config_siege_cooldownEndInMinutes;
 	public boolean config_spam_enabled;                                //whether or not to monitor for spam
 	public int config_spam_loginCooldownSeconds;                    //how long players must wait between logins.  combats login spam.
 	public int config_spam_loginLogoutNotificationsPerMinute;        //how many login/logout notifications to show per minute (global, not per player)
@@ -189,10 +183,6 @@ public class GriefPreventionLight extends JavaPlugin {
 	private String databaseUrl;
 	private String databaseUserName;
 	private String databasePassword;
-
-
-	//how far away to search from a tree trunk for its branch blocks
-	public static final int TREE_RADIUS = 5;
 
 	//how long to wait before deciding a player is staying online or staying offline, for notication messages
 	public static final int NOTIFICATION_SECONDS = 20;
@@ -438,7 +428,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		this.config_spam_banMessage = config.getString("GriefPrevention.Spam.BanMessage", "Banned for spam.");
 		String slashCommandsToMonitor = config.getString("GriefPrevention.Spam.MonitorSlashCommands", "/me;/global;/local");
 		slashCommandsToMonitor = config.getString("GriefPrevention.Spam.ChatSlashCommands", slashCommandsToMonitor);
-		this.config_spam_deathMessageCooldownSeconds = config.getInt("GriefPrevention.Spam.DeathMessageCooldownSeconds", 120);
 		this.config_spam_logoutMessageDelaySeconds = config.getInt("GriefPrevention.Spam.Logout Message Delay In Seconds", 0);
 
 		this.config_economy_claimBlocksMaxBonus = config.getInt("GriefPrevention.Economy.ClaimBlocksMaxBonus", 0);
@@ -504,79 +493,6 @@ public class GriefPreventionLight extends JavaPlugin {
 			GriefPreventionLight.AddLogEntry("ERROR: Material " + modificationToolMaterialName + " not found.  Defaulting to the golden shovel.  Please update your config.yml.");
 			this.config_claims_modificationTool = Material.GOLDEN_SHOVEL;
 		}
-
-		//default for siege worlds list
-		ArrayList<String> defaultSiegeWorldNames = new ArrayList<>();
-
-		//get siege world names from the config file
-		List<String> siegeEnabledWorldNames = config.getStringList("GriefPrevention.Siege.Worlds");
-		if(siegeEnabledWorldNames == null) {
-			siegeEnabledWorldNames = defaultSiegeWorldNames;
-		}
-
-		//validate that list
-		this.config_siege_enabledWorlds = new ArrayList<>();
-		for(String worldName : siegeEnabledWorldNames) {
-			World world = this.getServer().getWorld(worldName);
-			if(world == null) {
-				AddLogEntry("Error: Siege Configuration: There's no world named \"" + worldName + "\".  Please update your config.yml.");
-			} else {
-				this.config_siege_enabledWorlds.add(world);
-			}
-		}
-
-		//default siege blocks
-		this.config_siege_blocks = EnumSet.noneOf(Material.class);
-		this.config_siege_blocks.add(Material.DIRT);
-		this.config_siege_blocks.add(Material.GRASS_BLOCK);
-		this.config_siege_blocks.add(Material.GRASS);
-		this.config_siege_blocks.add(Material.FERN);
-		this.config_siege_blocks.add(Material.DEAD_BUSH);
-		this.config_siege_blocks.add(Material.COBBLESTONE);
-		this.config_siege_blocks.add(Material.GRAVEL);
-		this.config_siege_blocks.add(Material.SAND);
-		this.config_siege_blocks.add(Material.GLASS);
-		this.config_siege_blocks.add(Material.GLASS_PANE);
-		this.config_siege_blocks.add(Material.OAK_PLANKS);
-		this.config_siege_blocks.add(Material.SPRUCE_PLANKS);
-		this.config_siege_blocks.add(Material.BIRCH_PLANKS);
-		this.config_siege_blocks.add(Material.JUNGLE_PLANKS);
-		this.config_siege_blocks.add(Material.ACACIA_PLANKS);
-		this.config_siege_blocks.add(Material.DARK_OAK_PLANKS);
-		this.config_siege_blocks.add(Material.WHITE_WOOL);
-		this.config_siege_blocks.add(Material.ORANGE_WOOL);
-		this.config_siege_blocks.add(Material.MAGENTA_WOOL);
-		this.config_siege_blocks.add(Material.LIGHT_BLUE_WOOL);
-		this.config_siege_blocks.add(Material.YELLOW_WOOL);
-		this.config_siege_blocks.add(Material.LIME_WOOL);
-		this.config_siege_blocks.add(Material.PINK_WOOL);
-		this.config_siege_blocks.add(Material.GRAY_WOOL);
-		this.config_siege_blocks.add(Material.LIGHT_GRAY_WOOL);
-		this.config_siege_blocks.add(Material.CYAN_WOOL);
-		this.config_siege_blocks.add(Material.PURPLE_WOOL);
-		this.config_siege_blocks.add(Material.BLUE_WOOL);
-		this.config_siege_blocks.add(Material.BROWN_WOOL);
-		this.config_siege_blocks.add(Material.GREEN_WOOL);
-		this.config_siege_blocks.add(Material.RED_WOOL);
-		this.config_siege_blocks.add(Material.BLACK_WOOL);
-		this.config_siege_blocks.add(Material.SNOW);
-
-		List<String> breakableBlocksList;
-
-		//try to load the list from the config file
-		if(config.isList("GriefPrevention.Siege.BreakableBlocks")) {
-			breakableBlocksList = config.getStringList("GriefPrevention.Siege.BreakableBlocks");
-
-			//load materials
-			this.config_siege_blocks = parseMaterialListFromConfig(breakableBlocksList);
-		}
-		//if it fails, use default siege block list instead
-		else {
-			breakableBlocksList = this.config_siege_blocks.stream().map(Material::name).collect(Collectors.toList());
-		}
-
-		this.config_siege_doorsOpenSeconds = config.getInt("GriefPrevention.Siege.DoorsOpenDelayInSeconds", 5 * 60);
-		this.config_siege_cooldownEndInMinutes = config.getInt("GriefPrevention.Siege.CooldownEndInMinutes", 60);
 
 		//optional database settings
 		this.databaseUrl = config.getString("GriefPrevention.Database.URL", "");
@@ -655,7 +571,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		outConfig.set("GriefPrevention.Spam.BanOffenders", this.config_spam_banOffenders);
 		outConfig.set("GriefPrevention.Spam.BanMessage", this.config_spam_banMessage);
 		outConfig.set("GriefPrevention.Spam.AllowedIpAddresses", this.config_spam_allowedIpAddresses);
-		outConfig.set("GriefPrevention.Spam.DeathMessageCooldownSeconds", this.config_spam_deathMessageCooldownSeconds);
 		outConfig.set("GriefPrevention.Spam.Logout Message Delay In Seconds", this.config_spam_logoutMessageDelaySeconds);
 
 		outConfig.set("GriefPrevention.Economy.ClaimBlocksMaxBonus", this.config_economy_claimBlocksMaxBonus);
@@ -684,10 +599,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		outConfig.set("GriefPrevention.Mute New Players Using Banned Words", this.config_trollFilterEnabled);
 		outConfig.set("GriefPrevention.MaxPlayersPerIpAddress", this.config_ipLimit);
 
-		outConfig.set("GriefPrevention.Siege.Worlds", siegeEnabledWorldNames);
-		outConfig.set("GriefPrevention.Siege.BreakableBlocks", breakableBlocksList);
-		outConfig.set("GriefPrevention.Siege.DoorsOpenDelayInSeconds", this.config_siege_doorsOpenSeconds);
-		outConfig.set("GriefPrevention.Siege.CooldownEndInMinutes", this.config_siege_cooldownEndInMinutes);
 		outConfig.set("GriefPrevention.EndermenMoveBlocks", this.config_endermenMoveBlocks);
 		outConfig.set("GriefPrevention.SilverfishBreakBlocks", this.config_silverfishBreakBlocks);
 		outConfig.set("GriefPrevention.CreaturesTrampleCrops", this.config_creaturesTrampleCrops);
@@ -797,7 +708,7 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			//allow for specifying the radius
 			if(args.length > 0) {
-				if(playerData.getClaims().size() < 2 && player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
+				if(playerData.getClaims().size() < 2 && player.getGameMode() != GameMode.CREATIVE && player.getInventory().getItemInMainHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
 					sendMessage(player, TextMode.Err, Messages.RadiusRequiresGoldenShovel);
 					return true;
 				}
@@ -839,7 +750,7 @@ public class GriefPreventionLight extends JavaPlugin {
 				if(result.claim != null) {
 					sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapShort);
 
-					Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.ErrorClaim, player.getLocation());
+					Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.ErrorClaim, player.getLocation());
 					Visualization.Apply(player, visualization);
 				} else {
 					sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapRegion);
@@ -851,7 +762,7 @@ public class GriefPreventionLight extends JavaPlugin {
 				if(GriefPreventionLight.instance.claimsEnabledForWorld(player.getLocation().getWorld())) {
 					sendMessage(player, TextMode.Instr, Messages.SurvivalBasicsVideo2, DataStore.SURVIVAL_VIDEO_URL);
 				}
-				Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
+				Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.Claim, player.getLocation());
 				Visualization.Apply(player, visualization);
 				playerData.claimResizing = null;
 				playerData.lastShovelLocation = null;
@@ -882,7 +793,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			}
 
 			//requires claim modification tool in hand
-			if(player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
+			if(player.getGameMode() != GameMode.CREATIVE && player.getInventory().getItemInMainHand().getType() != GriefPreventionLight.instance.config_claims_modificationTool) {
 				sendMessage(player, TextMode.Err, Messages.MustHoldModificationToolForThat);
 				return true;
 			}
@@ -904,15 +815,6 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			//determine new corner coordinates
 			org.bukkit.util.Vector direction = player.getLocation().getDirection();
-			if(direction.getY() > .75) {
-				sendMessage(player, TextMode.Info, Messages.ClaimsExtendToSky);
-				return true;
-			}
-
-			if(direction.getY() < -.75) {
-				sendMessage(player, TextMode.Info, Messages.ClaimsAutoExtendDownward);
-				return true;
-			}
 
 			int newx1 = claim.lesserBoundaryCorner.x;
 			int newz1 = claim.lesserBoundaryCorner.z;
@@ -1185,7 +1087,7 @@ public class GriefPreventionLight extends JavaPlugin {
 				//validate player argument or group argument
 				if(!args[0].startsWith("[") || !args[0].endsWith("]")) {
 					otherPlayer = this.resolvePlayerByName(args[0]);
-					if(!clearPermissions && otherPlayer == null && !args[0].equals("public")) {
+					if(otherPlayer == null && !args[0].equals("public")) {
 						sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
 						return true;
 					}
@@ -1490,7 +1392,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			//try to find the specified world
 			World world = Bukkit.getServer().getWorld(args[0]);
 			if(world == null) {
-				sendMessage(player, TextMode.Err, Messages.WorldNotFound);
+				sendMessage(null, TextMode.Err, Messages.WorldNotFound);
 				return true;
 			}
 
@@ -1511,7 +1413,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			//try to find the specified world
 			World world = Bukkit.getServer().getWorld(args[0]);
 			if(world == null) {
-				sendMessage(player, TextMode.Err, Messages.WorldNotFound);
+				sendMessage(null, TextMode.Err, Messages.WorldNotFound);
 				return true;
 			}
 
@@ -1530,12 +1432,11 @@ public class GriefPreventionLight extends JavaPlugin {
 			Player otherPlayer = this.getServer().getPlayer(args[0]);
 			if(otherPlayer == null) {
 				sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-				return true;
 			} else {
 				WelcomeTask task = new WelcomeTask(otherPlayer);
 				task.run();
-				return true;
 			}
+			return true;
 		}
 
 		//claimslist or claimslist <player>
@@ -1647,12 +1548,10 @@ public class GriefPreventionLight extends JavaPlugin {
 			this.dataStore.deleteClaimsForPlayer(null, true);  //null for owner id indicates an administrative claim
 
 			sendMessage(player, TextMode.Success, Messages.AllAdminDeleted);
-			if(player != null) {
-				GriefPreventionLight.AddLogEntry(player.getName() + " deleted all administrative claims.", CustomLogEntryTypes.AdminActivity);
+			GriefPreventionLight.AddLogEntry(player.getName() + " deleted all administrative claims.", CustomLogEntryTypes.AdminActivity);
 
-				//revert any current visualization
-				Visualization.Revert(player);
-			}
+			//revert any current visualization
+			Visualization.Revert(player);
 
 			return true;
 		}
@@ -1815,42 +1714,8 @@ public class GriefPreventionLight extends JavaPlugin {
 			return true;
 		}
 
-		//siege
-		else if(cmd.getName().equalsIgnoreCase("siege") && player != null) {
-
-			//requires one argument
-			if(args.length > 1) {
-				return false;
-			}
-
-			//can't start a siege when you're already involved in one
-			Player attacker = player;
-			PlayerData attackerData = this.dataStore.getPlayerData(attacker.getUniqueId());
-
-			//if a player name was specified, use that
-			Player defender = null;
-			if(args.length >= 1) {
-				defender = this.getServer().getPlayer(args[0]);
-				if(defender == null) {
-					sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-					return true;
-				}
-			}
-
-			//otherwise use the last player this player was in pvp combat with
-			else if(attackerData.lastPvpPlayer.length() > 0) {
-				defender = this.getServer().getPlayer(attackerData.lastPvpPlayer);
-				if(defender == null) {
-					return false;
-				}
-			} else {
-				return false;
-			}
-
-			Claim defenderClaim = this.dataStore.getClaimAt(defender.getLocation(), null);
-
-			return true;
-		} else if(cmd.getName().equalsIgnoreCase("softmute")) {
+		//softmute
+		else if(cmd.getName().equalsIgnoreCase("softmute")) {
 			//requires one parameter
 			if(args.length != 1) return false;
 
@@ -1962,7 +1827,7 @@ public class GriefPreventionLight extends JavaPlugin {
 
 			PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 			Boolean ignoreStatus = playerData.ignoredPlayers.get(targetPlayer.getUniqueId());
-			if(ignoreStatus == null || ignoreStatus == true) {
+			if(ignoreStatus == null || ignoreStatus) {
 				sendMessage(player, TextMode.Err, Messages.NotIgnoringPlayer);
 				return true;
 			}
@@ -2124,18 +1989,17 @@ public class GriefPreventionLight extends JavaPlugin {
 
 		//validate player or group argument
 		String permission = null;
-		OfflinePlayer otherPlayer = null;
 		UUID recipientID = null;
 		if(recipientName.startsWith("[") && recipientName.endsWith("]")) {
 			permission = recipientName.substring(1, recipientName.length() - 1);
-			if(permission == null || permission.isEmpty()) {
+			if(permission.isEmpty()) {
 				sendMessage(player, TextMode.Err, Messages.InvalidPermissionID);
 				return;
 			}
 		} else if(recipientName.contains(".")) {
 			permission = recipientName;
 		} else {
-			otherPlayer = this.resolvePlayerByName(recipientName);
+			OfflinePlayer otherPlayer = this.resolvePlayerByName(recipientName);
 			if(otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all")) {
 				sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
 				return;
@@ -2162,7 +2026,7 @@ public class GriefPreventionLight extends JavaPlugin {
 			}
 
 			//see if the player has the level of permission he's trying to grant
-			String errorMessage = null;
+			String errorMessage;
 
 			//permission level null indicates granting permission trust
 			if(permissionLevel == null) {
@@ -2229,7 +2093,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		}
 
 		//notify player
-		if(recipientName.equals("public")) recipientName = this.dataStore.getMessage(Messages.CollectivePublic);
+		if("public".equals(recipientName)) recipientName = this.dataStore.getMessage(Messages.CollectivePublic);
 		String permissionDescription;
 		if(permissionLevel == null) {
 			permissionDescription = this.dataStore.getMessage(Messages.PermissionsPermission);
@@ -2271,7 +2135,6 @@ public class GriefPreventionLight extends JavaPlugin {
 			for(OfflinePlayer player : offlinePlayers) {
 				try {
 					UUID playerID = player.getUniqueId();
-					if(playerID == null) continue;
 					long lastSeen = player.getLastPlayed();
 
 					//if the player has been seen in the last 90 days, cache his name/UUID pair
@@ -2296,10 +2159,8 @@ public class GriefPreventionLight extends JavaPlugin {
 		Player targetPlayer = this.getServer().getPlayerExact(name);
 		if(targetPlayer != null) return targetPlayer;
 
-		UUID bestMatchID = null;
-
 		//try exact match first
-		bestMatchID = this.playerNameToIDMap.get(name);
+		UUID bestMatchID = this.playerNameToIDMap.get(name);
 
 		//if failed, try ignore case
 		if(bestMatchID == null) {
@@ -2403,14 +2264,12 @@ public class GriefPreventionLight extends JavaPlugin {
 		//look for a suitable location
 		Location candidateLocation = player.getLocation();
 		while(true) {
-			Claim claim = null;
-			claim = GriefPreventionLight.instance.dataStore.getClaimAt(candidateLocation, null);
+			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(candidateLocation, null);
 
 			//if there's a claim here, keep looking
 			if(claim != null) {
 				// TODO
 				candidateLocation = new Location(claim.world, claim.lesserBoundaryCorner.x - 1, 64, claim.lesserBoundaryCorner.z - 1);
-				continue;
 			}
 
 			//otherwise find a safe place to teleport the player
@@ -2480,7 +2339,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		//exception: administrators in ignore claims mode or wilderness
 		if(playerData.ignoreClaims || claim == null) return null;
 
-		//if not in the wilderness, then apply claim rules (permissions, etc)
+			//if not in the wilderness, then apply claim rules (permissions, etc)
 		else {
 			//cache the claim for later reference
 			playerData.lastClaim = claim;
@@ -2488,11 +2347,11 @@ public class GriefPreventionLight extends JavaPlugin {
 		}
 	}
 
-	public String allowBreak(Player player, Block block, Location location) {
-		return this.allowBreak(player, block, location, null);
+	public String allowBreak(Player player, Location location) {
+		return this.allowBreak(player, location, null);
 	}
 
-	public String allowBreak(Player player, Block block, Location location, BlockBreakEvent breakEvent) {
+	public String allowBreak(Player player, Location location, BlockBreakEvent breakEvent) {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
 		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
@@ -2515,77 +2374,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		}
 
 		return cancel;
-	}
-
-	//restores nature in multiple chunks, as described by a claim instance
-	//this restores all chunks which have ANY number of claim blocks from this claim in them
-	//if the claim is still active (in the data store), then the claimed blocks will not be changed (only the area bordering the claim)
-	public void restoreClaim(Claim claim, long delayInTicks) {
-		//admin claims aren't automatically cleaned up when deleted or abandoned
-		if(claim.isAdminClaim()) return;
-
-		//it's too expensive to do this for huge claims
-		if(claim.getArea() > 10000) return;
-
-		ArrayList<Chunk> chunks = claim.getChunks();
-		for(Chunk chunk : chunks) {
-			this.restoreChunk(chunk, this.getSeaLevel(chunk.getWorld()) - 15, false, delayInTicks, null);
-		}
-	}
-
-
-	public void restoreChunk(Chunk chunk, int miny, boolean aggressiveMode, long delayInTicks, Player playerReceivingVisualization) {
-		//build a snapshot of this chunk, including 1 block boundary outside of the chunk all the way around
-		int maxHeight = chunk.getWorld().getMaxHeight();
-		BlockSnapshot[][][] snapshots = new BlockSnapshot[18][maxHeight][18];
-		Block startBlock = chunk.getBlock(0, 0, 0);
-		Location startLocation = new Location(chunk.getWorld(), startBlock.getX() - 1, 0, startBlock.getZ() - 1);
-		for(int x = 0; x < snapshots.length; x++) {
-			for(int z = 0; z < snapshots[0][0].length; z++) {
-				for(int y = 0; y < snapshots[0].length; y++) {
-					Block block = chunk.getWorld().getBlockAt(startLocation.getBlockX() + x, startLocation.getBlockY() + y, startLocation.getBlockZ() + z);
-					snapshots[x][y][z] = new BlockSnapshot(block.getLocation(), block.getType(), block.getBlockData());
-				}
-			}
-		}
-
-		//create task to process those data in another thread
-		Location lesserBoundaryCorner = chunk.getBlock(0, 0, 0).getLocation();
-		Location greaterBoundaryCorner = chunk.getBlock(15, 0, 15).getLocation();
-	}
-
-	private Set<Material> parseMaterialListFromConfig(List<String> stringsToParse) {
-		Set<Material> materials = EnumSet.noneOf(Material.class);
-
-		//for each string in the list
-		for(int i = 0; i < stringsToParse.size(); i++) {
-			String string = stringsToParse.get(i);
-
-			//defensive coding
-			if(string == null) continue;
-
-			//try to parse the string value into a material
-			Material material = Material.getMaterial(string.toUpperCase());
-
-			//null value returned indicates an error parsing the string from the config file
-			if(material == null) {
-				//check if string has failed validity before
-				if(!string.contains("can't")) {
-					//update string, which will go out to config file to help user find the error entry
-					stringsToParse.set(i, string + "     <-- can't understand this entry, see BukkitDev documentation");
-
-					//warn about invalid material in log
-					GriefPreventionLight.AddLogEntry(String.format("ERROR: Invalid material %s.  Please update your config.yml.", string));
-				}
-			}
-
-			//otherwise material is valid, add it
-			else {
-				materials.add(material);
-			}
-		}
-
-		return materials;
 	}
 
 	public int getSeaLevel(World world) {
@@ -2643,62 +2431,6 @@ public class GriefPreventionLight extends JavaPlugin {
 		if(hand == EquipmentSlot.OFF_HAND) return player.getInventory().getItemInOffHand();
 		return player.getInventory().getItemInMainHand();
 	}
-
-    /*
-    protected boolean isPlayerTrappedInPortal(Block block)
-	{
-		Material playerBlock = block.getType();
-		if (playerBlock == Material.PORTAL)
-			return true;
-		//Most blocks you can "stand" inside but cannot pass through (isSolid) usually can be seen through (!isOccluding)
-		//This can cause players to technically be considered not in a portal block, yet in reality is still stuck in the portal animation.
-		if ((!playerBlock.isSolid() || playerBlock.isOccluding())) //If it is _not_ such a block,
-		{
-			//Check the block above
-			playerBlock = block.getRelative(BlockFace.UP).getType();
-			if ((!playerBlock.isSolid() || playerBlock.isOccluding()))
-				return false; //player is not stuck
-		}
-		//Check if this block is also adjacent to a portal
-		return block.getRelative(BlockFace.EAST).getType() == Material.PORTAL
-				|| block.getRelative(BlockFace.WEST).getType() == Material.PORTAL
-				|| block.getRelative(BlockFace.NORTH).getType() == Material.PORTAL
-				|| block.getRelative(BlockFace.SOUTH).getType() == Material.PORTAL;
-	}
-
-	public void rescuePlayerTrappedInPortal(final Player player)
-	{
-		final Location oldLocation = player.getLocation();
-		if (!isPlayerTrappedInPortal(oldLocation.getBlock()))
-		{
-			//Note that he 'escaped' the portal frame
-			instance.portalReturnMap.remove(player.getUniqueId());
-			instance.portalReturnTaskMap.remove(player.getUniqueId());
-			return;
-		}
-
-		Location rescueLocation = portalReturnMap.get(player.getUniqueId());
-
-		if (rescueLocation == null)
-			return;
-
-		//Temporarily store the old location, in case the player wishes to undo the rescue
-		dataStore.getPlayerData(player.getUniqueId()).portalTrappedLocation = oldLocation;
-
-		player.teleport(rescueLocation);
-		sendMessage(player, TextMode.Info, Messages.RescuedFromPortalTrap);
-		portalReturnMap.remove(player.getUniqueId());
-
-		new BukkitRunnable()
-		{
-			public void run()
-			{
-				if (oldLocation == dataStore.getPlayerData(player.getUniqueId()).portalTrappedLocation)
-					dataStore.getPlayerData(player.getUniqueId()).portalTrappedLocation = null;
-			}
-		}.runTaskLater(this, 600L);
-	}
-	*/
 
 	//Track scheduled "rescues" so we can cancel them if the player happens to teleport elsewhere so we can cancel it.
 	ConcurrentHashMap<UUID, BukkitTask> portalReturnTaskMap = new ConcurrentHashMap<>();

@@ -78,7 +78,6 @@ class PlayerEventHandler implements Listener {
 
 	{
 		for(Material material : Material.values()) {
-			if(material.isLegacy()) continue;
 			if(material.name().endsWith("_SPAWN_EGG"))
 				spawn_eggs.add(material);
 			else if(material.name().endsWith("_DYE"))
@@ -151,7 +150,6 @@ class PlayerEventHandler implements Listener {
 					playerData.profanityWarned = true;
 					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.NoProfanity);
 					event.setCancelled(true);
-					return;
 				}
 			}
 
@@ -379,14 +377,12 @@ class PlayerEventHandler implements Listener {
 			}
 
 			//unless cancelled, log in abridged logs
-			if(!event.isCancelled()) {
-				StringBuilder builder = new StringBuilder();
-				for(String arg : args) {
-					builder.append(arg).append(' ');
-				}
-
-				makeSocialLogEntry(event.getPlayer().getName(), builder.toString());
+			StringBuilder builder = new StringBuilder();
+			for(String arg : args) {
+				builder.append(arg).append(' ');
 			}
+
+			makeSocialLogEntry(event.getPlayer().getName(), builder.toString());
 		}
 
 		//if requires access trust, check for permission
@@ -585,8 +581,6 @@ class PlayerEventHandler implements Listener {
 								this.tempBannedIps.remove(j--);
 							}
 						}
-
-						break;
 					}
 
 					//otherwise if that account is still banned, ban this account, too
@@ -609,8 +603,8 @@ class PlayerEventHandler implements Listener {
 						//silence join message
 						event.setJoinMessage("");
 
-						break;
 					}
+					break;
 				}
 			}
 		}
@@ -702,21 +696,10 @@ class PlayerEventHandler implements Listener {
 		instance.checkPvpProtectionNeeded(player);
 	}
 
-	//when a player dies...
-	private final HashMap<UUID, Long> deathTimestamps = new HashMap<>();
-
 	@EventHandler(priority = EventPriority.HIGHEST)
 	void onPlayerDeath(PlayerDeathEvent event) {
 		//FEATURE: prevent death message spam by implementing a "cooldown period" for death messages
 		Player player = event.getEntity();
-		Long lastDeathTime = this.deathTimestamps.get(player.getUniqueId());
-		long now = Calendar.getInstance().getTimeInMillis();
-		if(lastDeathTime != null && now - lastDeathTime < instance.config_spam_deathMessageCooldownSeconds * 1000) {
-			player.sendMessage(event.getDeathMessage());  //let the player assume his death message was broadcasted to everyone
-			event.setDeathMessage("");
-		}
-
-		this.deathTimestamps.put(player.getUniqueId(), now);
 
 		//these are related to locking dropped items on death to prevent theft
 		PlayerData playerData = instance.dataStore.getPlayerData(player.getUniqueId());
@@ -827,9 +810,6 @@ class PlayerEventHandler implements Listener {
 		if(event.getCause() == TeleportCause.NETHER_PORTAL) {
 			//FEATURE: when players get trapped in a nether portal, send them back through to the other side
 			instance.startRescueTask(player, player.getLocation());
-
-			//don't track in worlds where claims are not enabled
-			if(!instance.claimsEnabledForWorld(event.getTo().getWorld())) return;
 		}
 	}
 
@@ -854,25 +834,6 @@ class PlayerEventHandler implements Listener {
 				}
 			}
 		}
-
-		//FEATURE: prevent teleport abuse to win sieges
-
-		//these rules only apply to siege worlds only
-		if(!instance.config_siege_enabledWorlds.contains(player.getWorld())) return;
-
-		//these rules do not apply to admins
-		if(player.hasPermission("griefprevention.siegeteleport")) return;
-
-		//Ignore vanilla teleports (usually corrective teleports? See issue #210)
-		if(event.getCause() == TeleportCause.UNKNOWN) return;
-
-		Location source = event.getFrom();
-		Claim sourceClaim = this.dataStore.getClaimAt(source, playerData.lastClaim);
-
-
-		Location destination = event.getTo();
-		Claim destinationClaim = this.dataStore.getClaimAt(destination, null);
-
 	}
 
 	//when a player triggers a raid (in a claim)
@@ -1005,7 +966,6 @@ class PlayerEventHandler implements Listener {
 				if(failureReason != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, failureReason);
-					return;
 				}
 			}
 		}
@@ -1028,7 +988,6 @@ class PlayerEventHandler implements Listener {
 				if(errorMessage != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.NoDamageClaimedEntity, claim.getOwnerName());
-					return;
 				}
 			}
 		}
@@ -1044,7 +1003,7 @@ class PlayerEventHandler implements Listener {
 		//who owns this stack?
 		Item item = event.getItem();
 		List<MetadataValue> data = item.getMetadata("GP_ITEMOWNER");
-		if(data != null && data.size() > 0) {
+		if(data.size() > 0) {
 			UUID ownerID = (UUID) data.get(0).value();
 
 			//has that player unlocked his drops?
@@ -1063,8 +1022,6 @@ class PlayerEventHandler implements Listener {
 						GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.PickupBlockedExplanation, ownerName);
 						playerData.receivedDropUnlockAdvertisement = true;
 					}
-
-					return;
 				}
 			}
 		}
@@ -1097,7 +1054,6 @@ class PlayerEventHandler implements Listener {
 
 		Player player = bucketEvent.getPlayer();
 		Block block = bucketEvent.getBlockClicked().getRelative(bucketEvent.getBlockFace());
-		int minLavaDistance = 10;
 
 		//make sure the player is allowed to build at the location
 		String noBuildReason = instance.allowBuild(player, block.getLocation());
@@ -1105,13 +1061,6 @@ class PlayerEventHandler implements Listener {
 			GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 			bucketEvent.setCancelled(true);
 			return;
-		}
-
-		//if the bucket is being used in a claim, allow for dumping lava closer to other players
-		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		Claim claim = this.dataStore.getClaimAt(block.getLocation(), playerData.lastClaim);
-		if(claim != null) {
-			minLavaDistance = 3;
 		}
 
 		//log any suspicious placements (check sea level, world type, and adjacent blocks)
@@ -1162,7 +1111,6 @@ class PlayerEventHandler implements Listener {
 
 			GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 			bucketEvent.setCancelled(true);
-			return;
 		}
 	}
 
@@ -1209,7 +1157,7 @@ class PlayerEventHandler implements Listener {
 				Block adjacentBlock = clickedBlock.getRelative(event.getBlockFace());
 				byte lightLevel = adjacentBlock.getLightFromBlocks();
 				if(lightLevel == 15 && adjacentBlock.getType() == Material.FIRE) {
-					if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
+					playerData = this.dataStore.getPlayerData(player.getUniqueId());
 					Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 					if(claim != null) {
 						playerData.lastClaim = claim;
@@ -1264,7 +1212,6 @@ class PlayerEventHandler implements Listener {
 				if(noContainersReason != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noContainersReason);
-					return;
 				}
 			}
 		}
@@ -1290,7 +1237,6 @@ class PlayerEventHandler implements Listener {
 				if(noAccessReason != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noAccessReason);
-					return;
 				}
 			}
 		}
@@ -1306,7 +1252,6 @@ class PlayerEventHandler implements Listener {
 				if(noAccessReason != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noAccessReason);
-					return;
 				}
 			}
 		}
@@ -1322,7 +1267,6 @@ class PlayerEventHandler implements Listener {
 				if(noContainerReason != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noContainerReason);
-					return;
 				}
 			}
 		}
@@ -1345,7 +1289,6 @@ class PlayerEventHandler implements Listener {
 				if(noBuildReason != null) {
 					event.setCancelled(true);
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
-					return;
 				}
 			}
 		}
@@ -1374,7 +1317,7 @@ class PlayerEventHandler implements Listener {
 					|| dyes.contains(materialInHand))) {
 				String noBuildReason = instance
 						.allowBuild(player, clickedBlock
-										.getLocation()
+								.getLocation()
 						);
 				if(noBuildReason != null) {
 					GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
@@ -1383,7 +1326,7 @@ class PlayerEventHandler implements Listener {
 
 				return;
 			} else if(clickedBlock != null && Tag.ITEMS_BOATS.isTagged(materialInHand)) {
-				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
+				playerData = this.dataStore.getPlayerData(player.getUniqueId());
 				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 				if(claim != null) {
 					String noBuildReason = claim.allowBuild(player); // Though only checks OAK_BOAT, permission should be same for all boats. Plus it being a boat doesn't seem to make a difference currently.
@@ -1403,7 +1346,7 @@ class PlayerEventHandler implements Listener {
 							materialInHand == Material.CHEST_MINECART ||
 							materialInHand == Material.TNT_MINECART ||
 							materialInHand == Material.HOPPER_MINECART)) {
-				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
+				playerData = this.dataStore.getPlayerData(player.getUniqueId());
 				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 				if(claim != null) {
 					String reason = claim.allowContainers(player);
@@ -1417,20 +1360,7 @@ class PlayerEventHandler implements Listener {
 			}
 
 			//if it's a spawn egg, minecart, or boat, and this is a creative world, apply special rules
-			else if(clickedBlock != null && (materialInHand == Material.MINECART ||
-					materialInHand == Material.FURNACE_MINECART ||
-					materialInHand == Material.CHEST_MINECART ||
-					materialInHand == Material.TNT_MINECART ||
-					materialInHand == Material.ARMOR_STAND ||
-					materialInHand == Material.ITEM_FRAME ||
-					spawn_eggs.contains(materialInHand) ||
-					materialInHand == Material.INFESTED_STONE ||
-					materialInHand == Material.INFESTED_COBBLESTONE ||
-					materialInHand == Material.INFESTED_STONE_BRICKS ||
-					materialInHand == Material.INFESTED_MOSSY_STONE_BRICKS ||
-					materialInHand == Material.INFESTED_CRACKED_STONE_BRICKS ||
-					materialInHand == Material.INFESTED_CHISELED_STONE_BRICKS ||
-					materialInHand == Material.HOPPER_MINECART)) {
+			else if(clickedBlock != null && (materialInHand == Material.ITEM_FRAME || spawn_eggs.contains(materialInHand) || materialInHand == Material.INFESTED_STONE || materialInHand == Material.INFESTED_COBBLESTONE || materialInHand == Material.INFESTED_STONE_BRICKS || materialInHand == Material.INFESTED_MOSSY_STONE_BRICKS || materialInHand == Material.INFESTED_CRACKED_STONE_BRICKS || materialInHand == Material.INFESTED_CHISELED_STONE_BRICKS)) {
 				//player needs build permission at this location
 				String noBuildReason = instance.allowBuild(player, clickedBlock.getLocation());
 				if(noBuildReason != null) {
@@ -1440,7 +1370,7 @@ class PlayerEventHandler implements Listener {
 				}
 
 				//enforce limit on total number of entities in this claim
-				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
+				playerData = this.dataStore.getPlayerData(player.getUniqueId());
 				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 				if(claim == null) return;
 
@@ -1470,7 +1400,7 @@ class PlayerEventHandler implements Listener {
 					if(inspectionEvent.isCancelled()) return;
 
 					//visualize boundaries
-					Visualization visualization = Visualization.fromClaims(claims, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
+					Visualization visualization = Visualization.fromClaims(claims, VisualizationType.Claim, player.getLocation());
 
 					// alert plugins of a visualization
 					Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, claims, true));
@@ -1485,7 +1415,7 @@ class PlayerEventHandler implements Listener {
 				//FEATURE: shovel and stick can be used from a distance away
 				if(action == Action.RIGHT_CLICK_AIR) {
 					//try to find a far away non-air block along line of sight
-					clickedBlock = getTargetBlock(player, 100);
+					clickedBlock = getTargetBlock(player);
 					clickedBlockType = clickedBlock.getType();
 				}
 
@@ -1505,7 +1435,7 @@ class PlayerEventHandler implements Listener {
 					return;
 				}
 
-				if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
+				playerData = this.dataStore.getPlayerData(player.getUniqueId());
 				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
 
 				//no claim case
@@ -1534,7 +1464,7 @@ class PlayerEventHandler implements Listener {
 					GriefPreventionLight.sendMessage(player, TextMode.Info, Messages.BlockClaimed, claim.getOwnerName());
 
 					//visualize boundary
-					Visualization visualization = Visualization.FromClaim(claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
+					Visualization visualization = Visualization.FromClaim(claim, VisualizationType.Claim, player.getLocation());
 
 					// alert plugins of a visualization
 					Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, claim));
@@ -1570,14 +1500,10 @@ class PlayerEventHandler implements Listener {
 
 			event.setCancelled(true);  //GriefPrevention exclusively reserves this tool  (e.g. no grass path creation for golden shovel)
 
-			//disable golden shovel while under siege
-			if(playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
-
-
 			//FEATURE: shovel and stick can be used from a distance away
 			if(action == Action.RIGHT_CLICK_AIR) {
 				//try to find a far away non-air block along line of sight
-				clickedBlock = getTargetBlock(player, 100);
+				clickedBlock = getTargetBlock(player);
 				clickedBlockType = clickedBlock.getType();
 			}
 
@@ -1607,7 +1533,7 @@ class PlayerEventHandler implements Listener {
 				if(clickedBlock.getLocation().equals(playerData.lastShovelLocation)) return;
 
 				//figure out what the coords of his new claim would be
-				int newx1, newx2, newz1, newz2, newy1, newy2;
+				int newx1, newx2, newz1, newz2;
 				if(playerData.lastShovelLocation.getBlockX() == playerData.claimResizing.lesserBoundaryCorner.getX()) {
 					newx1 = clickedBlock.getX();
 				} else {
@@ -1672,7 +1598,7 @@ class PlayerEventHandler implements Listener {
 						//otherwise, he's trying to finish creating a subdivision by setting the other boundary corner
 						else {
 							//if last shovel location was in a different world, assume the player is starting the create-claim workflow over
-							if(!playerData.lastShovelLocation.getWorld().equals(clickedBlock.getWorld())) {
+							if(!clickedBlock.getWorld().equals(playerData.lastShovelLocation.getWorld())) {
 								playerData.lastShovelLocation = null;
 								this.onPlayerInteract(event);
 								return;
@@ -1691,7 +1617,7 @@ class PlayerEventHandler implements Listener {
 							if(!result.succeeded) {
 								GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.CreateSubdivisionOverlap);
 
-								Visualization visualization = Visualization.FromClaim(result.claim, clickedBlock.getY(), VisualizationType.ErrorClaim, player.getLocation());
+								Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.ErrorClaim, player.getLocation());
 
 								// alert plugins of a visualization
 								Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, result.claim));
@@ -1704,7 +1630,7 @@ class PlayerEventHandler implements Listener {
 							//otherwise, advise him on the /trust command and show him his new subdivision
 							else {
 								GriefPreventionLight.sendMessage(player, TextMode.Success, Messages.SubdivisionSuccess);
-								Visualization visualization = Visualization.FromClaim(result.claim, clickedBlock.getY(), VisualizationType.Claim, player.getLocation());
+								Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.Claim, player.getLocation());
 
 								// alert plugins of a visualization
 								Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, result.claim));
@@ -1720,7 +1646,7 @@ class PlayerEventHandler implements Listener {
 					//also advise him to consider /abandonclaim or resizing the existing claim
 					else {
 						GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlap);
-						Visualization visualization = Visualization.FromClaim(claim, clickedBlock.getY(), VisualizationType.Claim, player.getLocation());
+						Visualization visualization = Visualization.FromClaim(claim, VisualizationType.Claim, player.getLocation());
 
 						// alert plugins of a visualization
 						Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, claim));
@@ -1732,7 +1658,7 @@ class PlayerEventHandler implements Listener {
 				//otherwise tell the player he can't claim here because it's someone else's claim, and show him the claim
 				else {
 					GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapOtherPlayer, claim.getOwnerName());
-					Visualization visualization = Visualization.FromClaim(claim, clickedBlock.getY(), VisualizationType.ErrorClaim, player.getLocation());
+					Visualization visualization = Visualization.FromClaim(claim, VisualizationType.ErrorClaim, player.getLocation());
 
 					// alert plugins of a visualization
 					Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, claim));
@@ -1768,7 +1694,7 @@ class PlayerEventHandler implements Listener {
 
 				//show him where he's working
 				Claim newClaim = new Claim(playerData.lastShovelLocation.getWorld(), new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), new Coordinate(playerData.lastShovelLocation.getBlockX(), playerData.lastShovelLocation.getBlockZ()), null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
-				Visualization visualization = Visualization.FromClaim(newClaim, clickedBlock.getY(), VisualizationType.RestoreNature, player.getLocation());
+				Visualization visualization = Visualization.FromClaim(newClaim, VisualizationType.RestoreNature, player.getLocation());
 
 				// alert plugins of a visualization
 				Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, newClaim));
@@ -1779,7 +1705,7 @@ class PlayerEventHandler implements Listener {
 			//otherwise, he's trying to finish creating a claim by setting the other boundary corner
 			else {
 				//if last shovel location was in a different world, assume the player is starting the create-claim workflow over
-				if(!lastShovelLocation.getWorld().equals(clickedBlock.getWorld())) {
+				if(!clickedBlock.getWorld().equals(lastShovelLocation.getWorld())) {
 					playerData.lastShovelLocation = null;
 					this.onPlayerInteract(event);
 					return;
@@ -1835,7 +1761,7 @@ class PlayerEventHandler implements Listener {
 					if(result.claim != null) {
 						GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapShort);
 
-						Visualization visualization = Visualization.FromClaim(result.claim, clickedBlock.getY(), VisualizationType.ErrorClaim, player.getLocation());
+						Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.ErrorClaim, player.getLocation());
 
 						// alert plugins of a visualization
 						Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, result.claim));
@@ -1844,14 +1770,12 @@ class PlayerEventHandler implements Listener {
 					} else {
 						GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapRegion);
 					}
-
-					return;
 				}
 
 				//otherwise, advise him on the /trust command and show him his new claim
 				else {
 					GriefPreventionLight.sendMessage(player, TextMode.Success, Messages.CreateClaimSuccess);
-					Visualization visualization = Visualization.FromClaim(result.claim, clickedBlock.getY(), VisualizationType.Claim, player.getLocation());
+					Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.Claim, player.getLocation());
 
 					// alert plugins of a visualization
 					Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, visualization, result.claim));
@@ -1894,7 +1818,7 @@ class PlayerEventHandler implements Listener {
 		Material cacheKey = clickedBlock.getType();
 		Boolean cachedValue = this.inventoryHolderCache.get(cacheKey);
 		if(cachedValue != null) {
-			return cachedValue.booleanValue();
+			return cachedValue;
 
 		} else {
 			boolean isHolder = clickedBlock.getState() instanceof InventoryHolder;
@@ -1922,11 +1846,11 @@ class PlayerEventHandler implements Listener {
 		}
 	}
 
-	static Block getTargetBlock(Player player, int maxDistance) throws IllegalStateException {
+	static Block getTargetBlock(Player player) throws IllegalStateException {
 		Location eye = player.getEyeLocation();
 		Material eyeMaterial = eye.getBlock().getType();
 		boolean passThroughWater = (eyeMaterial == Material.WATER);
-		BlockIterator iterator = new BlockIterator(player.getLocation(), player.getEyeHeight(), maxDistance);
+		BlockIterator iterator = new BlockIterator(player.getLocation(), player.getEyeHeight(), 100);
 		Block result = player.getLocation().getBlock().getRelative(BlockFace.UP);
 		while(iterator.hasNext()) {
 			result = iterator.next();

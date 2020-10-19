@@ -73,7 +73,7 @@ public class FlatFileDataStore extends DataStore {
 			if(!file.getName().startsWith("$")) continue;
 
 			String groupName = file.getName().substring(1);
-			if(groupName == null || groupName.isEmpty()) continue;  //defensive coding, avoid unlikely cases
+			if(groupName.isEmpty()) continue;  //defensive coding, avoid unlikely cases
 
 			BufferedReader inStream = null;
 			try {
@@ -148,14 +148,11 @@ public class FlatFileDataStore extends DataStore {
 				}
 
 				//try to convert player name to UUID
-				UUID playerID = null;
 				try {
-					playerID = UUIDFetcher.getUUIDOf(currentFilename);
+					UUID playerID = UUIDFetcher.getUUIDOf(currentFilename);
 
 					//if successful, rename the file using the UUID
-					if(playerID != null) {
-						playerFile.renameTo(new File(playerDataFolder, playerID.toString()));
-					}
+					playerFile.renameTo(new File(playerDataFolder, playerID.toString()));
 				} catch(Exception ex) {
 				}
 			}
@@ -232,21 +229,21 @@ public class FlatFileDataStore extends DataStore {
 						line = inStream.readLine();
 						String ownerName = line;
 						UUID ownerID = null;
-						if(ownerName.isEmpty() || ownerName.startsWith("--")) {
-							ownerID = null;  //administrative land claim or subdivision
-						} else if(this.getSchemaVersion() == 0) {
-							try {
-								ownerID = UUIDFetcher.getUUIDOf(ownerName);
-							} catch(Exception ex) {
-								GriefPreventionLight.AddLogEntry("Couldn't resolve this name to a UUID: " + ownerName + ".");
-								GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
-							}
-						} else {
-							try {
-								ownerID = UUID.fromString(ownerName);
-							} catch(Exception ex) {
-								GriefPreventionLight.AddLogEntry("Error - this is not a valid UUID: " + ownerName + ".");
-								GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+						if(!ownerName.isEmpty() && !ownerName.startsWith("--")) {
+							if(this.getSchemaVersion() == 0) {
+								try {
+									ownerID = UUIDFetcher.getUUIDOf(ownerName);
+								} catch(Exception ex) {
+									GriefPreventionLight.AddLogEntry("Couldn't resolve this name to a UUID: " + ownerName + ".");
+									GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+								}
+							} else {
+								try {
+									ownerID = UUID.fromString(ownerName);
+								} catch(Exception ex) {
+									GriefPreventionLight.AddLogEntry("Error - this is not a valid UUID: " + ownerName + ".");
+									GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+								}
 							}
 						}
 
@@ -325,7 +322,7 @@ public class FlatFileDataStore extends DataStore {
 		}
 	}
 
-	void loadClaimData(File[] files) throws Exception {
+	void loadClaimData(File[] files) {
 		ConcurrentHashMap<Claim, Long> orphans = new ConcurrentHashMap<>();
 		for(int i = 0; i < files.length; i++) {
 			if(files[i].isFile())  //avoids folders

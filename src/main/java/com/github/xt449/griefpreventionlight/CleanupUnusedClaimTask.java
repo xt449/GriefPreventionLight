@@ -24,12 +24,11 @@ import org.bukkit.OfflinePlayer;
 
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Vector;
 
 class CleanupUnusedClaimTask implements Runnable {
-	Claim claim;
-	PlayerData ownerData;
-	OfflinePlayer ownerInfo;
+	final Claim claim;
+	final PlayerData ownerData;
+	final OfflinePlayer ownerInfo;
 
 	CleanupUnusedClaimTask(Claim claim, PlayerData ownerData, OfflinePlayer ownerInfo) {
 		this.claim = claim;
@@ -39,8 +38,6 @@ class CleanupUnusedClaimTask implements Runnable {
 
 	@Override
 	public void run() {
-
-
 		//determine area of the default chest claim
 		int areaOfDefaultClaim = 0;
 		if(GriefPreventionLight.instance.config_claims_automaticClaimsForNewPlayersRadius >= 0) {
@@ -54,8 +51,8 @@ class CleanupUnusedClaimTask implements Runnable {
 			sevenDaysAgo.add(Calendar.DATE, -GriefPreventionLight.instance.config_claims_chestClaimExpirationDays);
 			boolean newPlayerClaimsExpired = sevenDaysAgo.getTime().after(new Date(ownerInfo.getLastPlayed()));
 			if(newPlayerClaimsExpired && ownerData.getClaims().size() == 1) {
-				if(expireEventCanceled())
-					return;
+				if(expireEventCanceled()) return;
+
 				GriefPreventionLight.instance.dataStore.deleteClaim(claim, true, true);
 
 				GriefPreventionLight.AddLogEntry(" " + claim.getOwnerName() + "'s new player claim expired.", CustomLogEntryTypes.AdminActivity);
@@ -68,10 +65,7 @@ class CleanupUnusedClaimTask implements Runnable {
 			earliestPermissibleLastLogin.add(Calendar.DATE, -GriefPreventionLight.instance.config_claims_expirationDays);
 
 			if(earliestPermissibleLastLogin.getTime().after(new Date(ownerInfo.getLastPlayed()))) {
-				if(expireEventCanceled())
-					return;
-				//make a copy of this player's claim list
-				Vector<Claim> claims = new Vector<>(ownerData.getClaims());
+				if(expireEventCanceled()) return;
 
 				//delete them
 				GriefPreventionLight.instance.dataStore.deleteClaimsForPlayer(claim.ownerID, true);

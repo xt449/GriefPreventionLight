@@ -80,11 +80,10 @@ public class BlockEventHandler implements Listener {
 		Block block = breakEvent.getBlock();
 
 		//make sure the player is allowed to break at the location
-		String noBuildReason = GriefPreventionLight.instance.allowBreak(player, block, block.getLocation(), breakEvent);
+		String noBuildReason = GriefPreventionLight.instance.allowBreak(player, block.getLocation(), breakEvent);
 		if(noBuildReason != null) {
 			GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
 			breakEvent.setCancelled(true);
-			return;
 		}
 	}
 
@@ -93,8 +92,6 @@ public class BlockEventHandler implements Listener {
 	public void onSignChanged(SignChangeEvent event) {
 		Player player = event.getPlayer();
 		Block sign = event.getBlock();
-
-		if(player == null || sign == null) return;
 
 		String noBuildReason = GriefPreventionLight.instance.allowBuild(player, sign.getLocation());
 		if(noBuildReason != null) {
@@ -261,14 +258,14 @@ public class BlockEventHandler implements Listener {
 							GriefPreventionLight.sendMessage(player, TextMode.Success, Messages.AutomaticClaimNotification);
 
 							//show the player the protected area
-							Visualization visualization = Visualization.FromClaim(result.claim, block.getY(), VisualizationType.Claim, player.getLocation());
+							Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.Claim, player.getLocation());
 							Visualization.Apply(player, visualization);
 						} else {
 							//notify and explain to player
 							GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.AutomaticClaimOtherClaimTooClose);
 
 							//show the player the protected area
-							Visualization visualization = Visualization.FromClaim(result.claim, block.getY(), VisualizationType.ErrorClaim, player.getLocation());
+							Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.ErrorClaim, player.getLocation());
 							Visualization.Apply(player, visualization);
 						}
 					}
@@ -314,7 +311,7 @@ public class BlockEventHandler implements Listener {
 					}
 
 					if(playerData.lastClaim != null) {
-						Visualization visualization = Visualization.FromClaim(playerData.lastClaim, block.getY(), VisualizationType.Claim, player.getLocation());
+						Visualization visualization = Visualization.FromClaim(playerData.lastClaim, VisualizationType.Claim, player.getLocation());
 						Visualization.Apply(player, visualization);
 					}
 				}
@@ -699,7 +696,6 @@ public class BlockEventHandler implements Listener {
 			event.getHitBlock().setType(Material.AIR);
 			Bukkit.getScheduler().runTask(GriefPreventionLight.instance, () -> event.getHitBlock().setBlockData(block.getBlockData()));
 			GriefPreventionLight.sendMessage(shooter, TextMode.Err, allowContainer);
-			return;
 		}
 	}
 
@@ -778,7 +774,7 @@ public class BlockEventHandler implements Listener {
 			Item item = event.getItem();
 			List<MetadataValue> data = item.getMetadata("GP_ITEMOWNER");
 			//if this is marked as belonging to a player
-			if(data != null && data.size() > 0) {
+			if(data.size() > 0) {
 				UUID ownerID = (UUID) data.get(0).value();
 
 				//has that player unlocked his drops?

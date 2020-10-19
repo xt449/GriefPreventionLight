@@ -20,7 +20,6 @@ package com.github.xt449.griefpreventionlight;
 
 import com.github.xt449.griefpreventionlight.events.ClaimCreatedEvent;
 import com.github.xt449.griefpreventionlight.events.ClaimDeletedEvent;
-import com.github.xt449.griefpreventionlight.events.ClaimExtendEvent;
 import com.github.xt449.griefpreventionlight.events.ClaimModifiedEvent;
 import com.google.common.io.Files;
 import org.bukkit.*;
@@ -81,7 +80,6 @@ public abstract class DataStore {
 
 	//video links
 	static final String SURVIVAL_VIDEO_URL = "" + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + "bit.ly/mcgpuser" + ChatColor.RESET;
-	static final String CREATIVE_VIDEO_URL = "" + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + "bit.ly/mcgpcrea" + ChatColor.RESET;
 	static final String SUBDIVISION_VIDEO_URL = "" + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + "bit.ly/mcgpsub" + ChatColor.RESET;
 
 	//list of UUIDs which are soft-muted
@@ -238,7 +236,7 @@ public abstract class DataStore {
 			outStream = new BufferedWriter(new FileWriter(softMuteFile));
 
 			for(Map.Entry<UUID, Boolean> entry : softMuteMap.entrySet()) {
-				if(entry.getValue().booleanValue()) {
+				if(entry.getValue()) {
 					outStream.write(entry.getKey().toString());
 					outStream.newLine();
 				}
@@ -299,7 +297,7 @@ public abstract class DataStore {
 
 	abstract void saveGroupBonusBlocks(String groupName, int amount);
 
-	public class NoTransferException extends RuntimeException {
+	public static class NoTransferException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
 
 		NoTransferException(String message) {
@@ -377,10 +375,7 @@ public abstract class DataStore {
 	private void addToChunkClaimMap(Claim claim) {
 		ArrayList<Long> chunkHashes = claim.getChunkHashes();
 		for(Long chunkHash : chunkHashes) {
-			ArrayList<Claim> claimsInChunk = this.chunksToClaimsMap.get(chunkHash);
-			if(claimsInChunk == null) {
-				this.chunksToClaimsMap.put(chunkHash, claimsInChunk = new ArrayList<>());
-			}
+			ArrayList<Claim> claimsInChunk = this.chunksToClaimsMap.computeIfAbsent(chunkHash, k -> new ArrayList<>());
 
 			claimsInChunk.add(claim);
 		}
@@ -409,13 +404,7 @@ public abstract class DataStore {
 	private final String locationStringDelimiter = ";";
 
 	String locationToString(Location location) {
-		StringBuilder stringBuilder = new StringBuilder(location.getWorld().getName());
-		stringBuilder.append(locationStringDelimiter);
-		stringBuilder.append(location.getBlockX());
-		stringBuilder.append(locationStringDelimiter);
-		stringBuilder.append(location.getBlockZ());
-
-		return stringBuilder.toString();
+		return location.getWorld().getName() + locationStringDelimiter + location.getBlockX() + locationStringDelimiter + location.getBlockZ();
 	}
 
 	//turns a location string back into a location
@@ -493,11 +482,6 @@ public abstract class DataStore {
 	abstract PlayerData getPlayerDataFromStorage(UUID playerID);
 
 	//deletes a claim or subdivision
-	synchronized public void deleteClaim(Claim claim) {
-		this.deleteClaim(claim, true, false);
-	}
-
-	//deletes a claim or subdivision
 	synchronized public void deleteClaim(Claim claim, boolean releasePets) {
 		this.deleteClaim(claim, true, releasePets);
 	}
@@ -558,14 +542,12 @@ public abstract class DataStore {
 							AnimalTamer owner = pet.getOwner();
 							if(owner != null) {
 								UUID ownerID = owner.getUniqueId();
-								if(ownerID != null) {
-									if(ownerID.equals(claim.ownerID)) {
-										pet.setTamed(false);
-										pet.setOwner(null);
-										if(pet instanceof InventoryHolder) {
-											InventoryHolder holder = (InventoryHolder) pet;
-											holder.getInventory().clear();
-										}
+								if(ownerID.equals(claim.ownerID)) {
+									pet.setTamed(false);
+									pet.setOwner(null);
+									if(pet instanceof InventoryHolder) {
+										InventoryHolder holder = (InventoryHolder) pet;
+										holder.getInventory().clear();
 									}
 								}
 							}
@@ -736,7 +718,7 @@ public abstract class DataStore {
 
 		for(Claim otherClaim : claimsToCheck) {
 			//if we find an existing claim which will be overlapped
-			if(otherClaim.id != newClaim.id && otherClaim.inDataStore && otherClaim.overlaps(newClaim)) {
+			if(!otherClaim.id.equals(newClaim.id) && otherClaim.inDataStore && otherClaim.overlaps(newClaim)) {
 				//result = fail, return conflicting claim
 				result.succeeded = false;
 				result.claim = otherClaim;
@@ -904,12 +886,9 @@ public abstract class DataStore {
 
 		//special rule for making a top-level claim smaller.  to check this, verifying the old claim's corners are inside the new claim's boundaries.
 		//rule: in any mode, shrinking a claim removes any surface fluids
-		boolean smaller = false;
 		if(oldClaim.parent == null) {
 			//if the new claim is smaller
-			if(!newClaim.intersects(oldClaim, false)) {
-				smaller = true;
-			}
+			newClaim.intersects(oldClaim, false);
 		}
 
 		//ask the datastore to try and resize the claim, this checks for conflicts with other claims
@@ -937,7 +916,7 @@ public abstract class DataStore {
 
 			//inform about success, visualize, communicate remaining blocks available
 			GriefPreventionLight.sendMessage(player, TextMode.Success, Messages.ClaimResizeSuccess, String.valueOf(claimBlocksRemaining));
-			Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation());
+			Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.Claim, player.getLocation());
 			Visualization.Apply(player, visualization);
 
 			//if resizing someone else's claim, make a log entry
@@ -960,7 +939,7 @@ public abstract class DataStore {
 				GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeFailOverlap);
 
 				//show the player the conflicting claim
-				Visualization visualization = Visualization.FromClaim(result.claim, player.getEyeLocation().getBlockY(), VisualizationType.ErrorClaim, player.getLocation());
+				Visualization visualization = Visualization.FromClaim(result.claim, VisualizationType.ErrorClaim, player.getLocation());
 				Visualization.Apply(player, visualization);
 			} else {
 				GriefPreventionLight.sendMessage(player, TextMode.Err, Messages.ResizeFailOverlapRegion);
@@ -1066,7 +1045,6 @@ public abstract class DataStore {
 		this.addDefault(defaults, Messages.TooFarAway, "That's too far away.", null);
 		this.addDefault(defaults, Messages.BlockNotClaimed, "No one has claimed this block.", null);
 		this.addDefault(defaults, Messages.BlockClaimed, "That block has been claimed by {0}.", "0: claim owner");
-		this.addDefault(defaults, Messages.RestoreNaturePlayerInChunk, "Unable to restore.  {0} is in that chunk.", "0: nearby player");
 		this.addDefault(defaults, Messages.NoCreateClaimPermission, "You don't have permission to claim land.", null);
 		this.addDefault(defaults, Messages.ResizeClaimTooNarrow, "This new size would be too small.  Claims must be at least {0} blocks wide.", "0: minimum claim width");
 		this.addDefault(defaults, Messages.ResizeNeedMoreBlocks, "You don't have enough blocks for this size.  You need {0} more.", "0: how many needed");
@@ -1159,8 +1137,6 @@ public abstract class DataStore {
 		this.addDefault(defaults, Messages.NoEnoughBlocksForChestClaim, "Because you don't have any claim blocks available, no automatic land claim was created for you.  You can use /ClaimsList to monitor your available claim block total.", null);
 		this.addDefault(defaults, Messages.MustHoldModificationToolForThat, "You must be holding a golden shovel to do that.", null);
 		this.addDefault(defaults, Messages.StandInClaimToResize, "Stand inside the land claim you want to resize.", null);
-		this.addDefault(defaults, Messages.ClaimsExtendToSky, "Land claims always extend to max build height.", null);
-		this.addDefault(defaults, Messages.ClaimsAutoExtendDownward, "Land claims auto-extend deeper into the ground when you place blocks under them.", null);
 		this.addDefault(defaults, Messages.MinimumRadius, "Minimum radius is {0}.", "0: minimum radius");
 		this.addDefault(defaults, Messages.RadiusRequiresGoldenShovel, "You must be holding a golden shovel when specifying a radius.", null);
 		this.addDefault(defaults, Messages.ClaimTooSmallForActiveBlocks, "This claim isn't big enough to support any active block types (hoppers, spawners, beacons...).  Make the claim bigger first.", null);

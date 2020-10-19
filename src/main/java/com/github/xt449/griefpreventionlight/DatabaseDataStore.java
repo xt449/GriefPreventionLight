@@ -130,7 +130,7 @@ public class DatabaseDataStore extends DataStore {
 			if(!name.startsWith("$")) continue;
 
 			String groupName = name.substring(1);
-			if(groupName == null || groupName.isEmpty()) continue;  //defensive coding, avoid unlikely cases
+			if(groupName.isEmpty()) continue;  //defensive coding, avoid unlikely cases
 
 			int groupBonusBlocks = results.getInt("bonusblocks");
 
@@ -193,9 +193,7 @@ public class DatabaseDataStore extends DataStore {
 						UUID playerID = UUIDFetcher.getUUIDOf(playerName);
 
 						//if successful, update the playerdata row by replacing the player's name with the player's UUID
-						if(playerID != null) {
-							changes.put(playerName, playerID);
-						}
+						changes.put(playerName, playerID);
 					}
 					//otherwise leave it as-is. no harm done - it won't be requested by name, and this update only happens once.
 					catch(Exception ex) {
@@ -235,14 +233,13 @@ public class DatabaseDataStore extends DataStore {
 		ArrayList<Claim> subdivisionsToLoad = new ArrayList<>();
 		List<World> validWorlds = Bukkit.getServer().getWorlds();
 
-		Long claimID = null;
 		while(results.next()) {
 			try {
 				//problematic claims will be removed from secondary storage, and never added to in-memory data store
 				boolean removeClaim = false;
 
 				long parentId = results.getLong("parentid");
-				claimID = results.getLong("id");
+				long claimID = results.getLong("id");
 				boolean inheritNothing = results.getBoolean("inheritNothing");
 				Location lesserBoundaryCorner = null;
 				Location greaterBoundaryCorner = null;
@@ -254,7 +251,7 @@ public class DatabaseDataStore extends DataStore {
 					greaterBoundaryCorner = this.locationFromString(greaterCornerString, validWorlds);
 				} catch(Exception e) {
 					if(e.getMessage() != null && e.getMessage().contains("World not found")) {
-						GriefPreventionLight.AddLogEntry("Failed to load a claim (ID:" + claimID.toString() + ") because its world isn't loaded (yet?).  Please delete the claim or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
+						GriefPreventionLight.AddLogEntry("Failed to load a claim (ID:" + claimID + ") because its world isn't loaded (yet?).  Please delete the claim or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
 						continue;
 					} else {
 						throw e;
@@ -263,21 +260,21 @@ public class DatabaseDataStore extends DataStore {
 
 				String ownerName = results.getString("owner");
 				UUID ownerID = null;
-				if(ownerName.isEmpty() || ownerName.startsWith("--")) {
-					ownerID = null;  //administrative land claim or subdivision
-				} else if(this.getSchemaVersion() < 1) {
-					try {
-						ownerID = UUIDFetcher.getUUIDOf(ownerName);
-					} catch(Exception ex) {
-						GriefPreventionLight.AddLogEntry("This owner name did not convert to a UUID: " + ownerName + ".");
-						GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
-					}
-				} else {
-					try {
-						ownerID = UUID.fromString(ownerName);
-					} catch(Exception ex) {
-						GriefPreventionLight.AddLogEntry("This owner entry is not a UUID: " + ownerName + ".");
-						GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+				if(!ownerName.isEmpty() && !ownerName.startsWith("--")) {
+					if(this.getSchemaVersion() < 1) {
+						try {
+							ownerID = UUIDFetcher.getUUIDOf(ownerName);
+						} catch(Exception ex) {
+							GriefPreventionLight.AddLogEntry("This owner name did not convert to a UUID: " + ownerName + ".");
+							GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+						}
+					} else {
+						try {
+							ownerID = UUID.fromString(ownerName);
+						} catch(Exception ex) {
+							GriefPreventionLight.AddLogEntry("This owner entry is not a UUID: " + ownerName + ".");
+							GriefPreventionLight.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
+						}
 					}
 				}
 
@@ -298,9 +295,7 @@ public class DatabaseDataStore extends DataStore {
 				managerNames = this.convertNameListToUUIDList(managerNames);
 				Claim claim = new Claim(lesserBoundaryCorner.getWorld(), Coordinate.fromLocation(lesserBoundaryCorner), Coordinate.fromLocation(greaterBoundaryCorner), ownerID, builderNames, containerNames, accessorNames, managerNames, inheritNothing, claimID);
 
-				if(removeClaim) {
-					claimsToRemove.add(claim);
-				} else if(parentId == -1) {
+				if(parentId == -1) {
 					//top level claim
 					this.addClaim(claim, false);
 				} else {
@@ -584,11 +579,11 @@ public class DatabaseDataStore extends DataStore {
 	 * @return String with all values from input array
 	 */
 	private String storageStringBuilder(ArrayList<String> input) {
-		String output = "";
+		StringBuilder output = new StringBuilder();
 		for(String string : input) {
-			output += string + ";";
+			output.append(string).append(";");
 		}
-		return output;
+		return output.toString();
 	}
 
 	public String getUpdateNameSQL() {

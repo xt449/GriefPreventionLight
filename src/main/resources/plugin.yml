@@ -265,9 +265,6 @@ permissions:
   griefprevention.eavesdropsigns:
     description: Allows a player to see sign placements as chat messages.
     default: op
-  griefprevention.restorenatureaggressive:
-    description: Grants access to /RestoreNatureAggressive and /RestoreNatureFill.
-    default: op
   griefprevention.deathblow:
     description: Grants access to /DeathBlow.
     default: op

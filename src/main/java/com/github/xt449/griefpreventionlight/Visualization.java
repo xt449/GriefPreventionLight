@@ -90,10 +90,10 @@ public class Visualization {
 
 	//convenience method to build a visualization from a claim
 	//visualizationType determines the style (gold blocks, silver, red, diamond, etc)
-	public static Visualization FromClaim(Claim claim, int height, VisualizationType visualizationType, Location locality) {
+	public static Visualization FromClaim(Claim claim, VisualizationType visualizationType, Location locality) {
 		//visualize only top level claims
 		if(claim.parent != null) {
-			return FromClaim(claim.parent, height, visualizationType, locality);
+			return FromClaim(claim.parent, visualizationType, locality);
 		}
 
 		Visualization visualization = new Visualization();
@@ -102,7 +102,7 @@ public class Visualization {
 		for(int i = 0; i < claim.children.size(); i++) {
 			Claim child = claim.children.get(i);
 			if(!child.inDataStore) continue;
-			visualization.addClaimElements(child, height, VisualizationType.Subdivision, locality);
+			visualization.addClaimElements(child, VisualizationType.Subdivision, locality);
 		}
 
 		//special visualization for administrative land claims
@@ -111,7 +111,7 @@ public class Visualization {
 		}
 
 		//add top level last so that it takes precedence (it shows on top when the child claim boundaries overlap with its boundaries)
-		visualization.addClaimElements(claim, height, visualizationType, locality);
+		visualization.addClaimElements(claim, visualizationType, locality);
 
 		return visualization;
 	}
@@ -120,7 +120,7 @@ public class Visualization {
 	//handy for combining several visualizations together, as when visualization a top level claim with several subdivisions inside
 	//locality is a performance consideration.  only create visualization blocks for around 100 blocks of the locality
 
-	public void addClaimElements(Claim claim, int height, VisualizationType visualizationType, Location locality) {
+	public void addClaimElements(Claim claim, VisualizationType visualizationType, Location locality) {
 		BlockData cornerBlockData;
 		BlockData accentBlockData;
 
@@ -258,9 +258,8 @@ public class Visualization {
 	private static boolean isTransparent(Block block, boolean waterIsTransparent) {
 		Material blockMaterial = block.getType();
 		//Blacklist
-		switch(blockMaterial) {
-			case SNOW:
-				return false;
+		if(blockMaterial == Material.SNOW) {
+			return false;
 		}
 
 		//Whitelist TODO: some of this might already be included in isTransparent()
@@ -289,11 +288,11 @@ public class Visualization {
 				block.getType().isTransparent();
 	}
 
-	public static Visualization fromClaims(Iterable<Claim> claims, int height, VisualizationType type, Location locality) {
+	public static Visualization fromClaims(Iterable<Claim> claims, VisualizationType type, Location locality) {
 		Visualization visualization = new Visualization();
 
 		for(Claim claim : claims) {
-			visualization.addClaimElements(claim, height, type, locality);
+			visualization.addClaimElements(claim, type, locality);
 		}
 
 		return visualization;

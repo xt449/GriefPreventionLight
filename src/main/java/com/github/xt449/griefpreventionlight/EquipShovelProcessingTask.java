@@ -63,7 +63,7 @@ class EquipShovelProcessingTask implements Runnable {
 		Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 		if(claim != null && claim.allowEdit(player) == null) {
 			playerData.lastClaim = claim;
-			Visualization.Apply(player, Visualization.FromClaim(claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation()));
+			Visualization.Apply(player, Visualization.FromClaim(claim, VisualizationType.Claim, player.getLocation()));
 		}
 	}
 }
