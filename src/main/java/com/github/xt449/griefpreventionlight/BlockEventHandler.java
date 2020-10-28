@@ -502,7 +502,6 @@ public class BlockEventHandler implements Listener {
 			// If pushing this block will change ownership, cancel the event and take away the piston (for performance reasons).
 			if(pistonClaim == null || !Objects.equals(pistonClaim.ownerID, claim.ownerID)) {
 				event.setCancelled(true);
-				pistonBlock.getWorld().createExplosion(pistonBlock.getLocation(), 0);
 				pistonBlock.getWorld().dropItem(pistonBlock.getLocation(), new ItemStack(event.isSticky() ? Material.STICKY_PISTON : Material.PISTON));
 				pistonBlock.setType(Material.AIR);
 				return;
