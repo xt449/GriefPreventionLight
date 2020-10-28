@@ -350,17 +350,17 @@ public class BlockEventHandler implements Listener {
 	// Prevent pistons pushing blocks into or out of claims.
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void onBlockPistonExtend(BlockPistonExtendEvent event) {
-		onPistonEvent(event, event.getBlocks());
+		onPistonEvent(event, event.getBlocks(), false);
 	}
 
 	// Prevent pistons pulling blocks into or out of claims.
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void onBlockPistonRetract(BlockPistonRetractEvent event) {
-		onPistonEvent(event, event.getBlocks());
+		onPistonEvent(event, event.getBlocks(), true);
 	}
 
 	// Handle piston push and pulls.
-	private void onPistonEvent(BlockPistonEvent event, List<Block> blocks) {
+	private void onPistonEvent(BlockPistonEvent event, List<Block> blocks, boolean retracting) {
 		PistonMode pistonMode = GriefPreventionLight.instance.config_pistonMovement;
 		// Return if piston movements are ignored.
 		if(pistonMode == PistonMode.IGNORED) return;
@@ -369,6 +369,10 @@ public class BlockEventHandler implements Listener {
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(event.getBlock().getWorld())) return;
 
 		BlockFace direction = event.getDirection();
+		if(retracting) {
+			direction = direction.getOppositeFace();
+		}
+
 		Block pistonBlock = event.getBlock();
 		Claim pistonClaim = this.dataStore.getClaimAt(pistonBlock.getLocation(), null);
 
@@ -430,7 +434,7 @@ public class BlockEventHandler implements Listener {
 		}
 
 		// Pushing down or pulling up is safe if all blocks are in line with the piston.
-		if(minX == maxX && minZ == maxZ && direction == (event instanceof BlockPistonExtendEvent ? BlockFace.DOWN : BlockFace.UP))
+		if(minX == maxX && minZ == maxZ && direction == (retracting ? BlockFace.DOWN : BlockFace.UP))
 			return;
 
 		// Fast mode: Use the intersection of a cuboid containing all blocks instead of individual locations.
