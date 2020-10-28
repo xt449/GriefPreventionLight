@@ -6,8 +6,7 @@
 
     <groupId>com.github.xt449</groupId>
     <artifactId>griefpreventionlight</artifactId>
-    <version>16.15.0</version>
-
+    <version>16.16.0</version>
     <name>GriefPreventionLight</name>
 
     <repositories>
