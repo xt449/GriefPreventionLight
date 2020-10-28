@@ -14,10 +14,6 @@
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
-        <repository>
-            <id>worldedit-worldguard-repo</id>
-            <url>https://maven.enginehub.org/repo/</url>
-        </repository>
     </repositories>
 
     <dependencies>
