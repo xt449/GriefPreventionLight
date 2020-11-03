@@ -6,8 +6,12 @@
 
     <groupId>com.github.xt449</groupId>
     <artifactId>griefpreventionlight</artifactId>
-    <version>16.16.0</version>
+    <version>${minecraft.version}-16.16.0</version>
     <name>GriefPreventionLight</name>
+
+    <properties>
+        <minecraft.version>1.16.4</minecraft.version>
+    </properties>
 
     <repositories>
         <repository>
@@ -20,7 +24,7 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
-            <version>1.16.3-R0.1-SNAPSHOT</version>
+            <version>${minecraft.version}-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
