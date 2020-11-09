@@ -1368,20 +1368,6 @@ class PlayerEventHandler implements Listener {
 					event.setCancelled(true);
 					return;
 				}
-
-				//enforce limit on total number of entities in this claim
-				playerData = this.dataStore.getPlayerData(player.getUniqueId());
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
-				if(claim == null) return;
-
-				String noEntitiesReason = claim.allowMoreEntities(false);
-				if(noEntitiesReason != null) {
-					GriefPreventionLight.sendMessage(player, TextMode.Err, noEntitiesReason);
-					event.setCancelled(true);
-					return;
-				}
-
-				return;
 			}
 
 			//if he's investigating a claim
