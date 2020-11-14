@@ -268,10 +268,6 @@ public class GriefPreventionLight extends JavaPlugin {
 			this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task, 20L * 60 * 10, 20L * 60 * 10);
 		}
 
-		//start recurring cleanup scan for unused claims belonging to inactive players
-		FindUnusedClaimsTask task2 = new FindUnusedClaimsTask();
-		this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task2, 20L * 60, 20L * config_advanced_claim_expiration_check_rate);
-
 		//register for events
 		PluginManager pluginManager = this.getServer().getPluginManager();
 
