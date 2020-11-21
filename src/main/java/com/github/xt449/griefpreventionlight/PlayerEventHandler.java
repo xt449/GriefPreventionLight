@@ -1325,18 +1325,6 @@ class PlayerEventHandler implements Listener {
 				}
 
 				return;
-			} else if(clickedBlock != null && Tag.ITEMS_BOATS.isTagged(materialInHand)) {
-				playerData = this.dataStore.getPlayerData(player.getUniqueId());
-				Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), playerData.lastClaim);
-				if(claim != null) {
-					String noBuildReason = claim.allowBuild(player); // Though only checks OAK_BOAT, permission should be same for all boats. Plus it being a boat doesn't seem to make a difference currently.
-					if(noBuildReason != null) {
-						GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
-						event.setCancelled(true);
-					}
-				}
-
-				return;
 			}
 
 			//survival world minecart placement requires container trust, which is the permission required to remove the minecart later
@@ -1357,17 +1345,6 @@ class PlayerEventHandler implements Listener {
 				}
 
 				return;
-			}
-
-			//if it's a spawn egg, minecart, or boat, and this is a creative world, apply special rules
-			else if(clickedBlock != null && (materialInHand == Material.ITEM_FRAME || spawn_eggs.contains(materialInHand) || materialInHand == Material.INFESTED_STONE || materialInHand == Material.INFESTED_COBBLESTONE || materialInHand == Material.INFESTED_STONE_BRICKS || materialInHand == Material.INFESTED_MOSSY_STONE_BRICKS || materialInHand == Material.INFESTED_CRACKED_STONE_BRICKS || materialInHand == Material.INFESTED_CHISELED_STONE_BRICKS)) {
-				//player needs build permission at this location
-				String noBuildReason = instance.allowBuild(player, clickedBlock.getLocation());
-				if(noBuildReason != null) {
-					GriefPreventionLight.sendMessage(player, TextMode.Err, noBuildReason);
-					event.setCancelled(true);
-					return;
-				}
 			}
 
 			//if he's investigating a claim
