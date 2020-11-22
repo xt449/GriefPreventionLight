@@ -738,9 +738,6 @@ public class EntityEventHandler implements Listener {
 	//when a vehicle is damaged
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void onVehicleDamage(VehicleDamageEvent event) {
-		//all of this is anti theft code
-		if(!GriefPreventionLight.instance.config_claims_preventTheft) return;
-
 		//don't track in worlds where claims are not enabled
 		if(!GriefPreventionLight.instance.claimsEnabledForWorld(event.getVehicle().getWorld())) return;
 
@@ -774,9 +771,21 @@ public class EntityEventHandler implements Listener {
 		PlayerData playerData = null;
 
 		if(attacker != null) {
+			// TODO
+			// Allow breaking boats and minecarts that belong to the owner in any claim
+			final List<MetadataValue> metadata = event.getVehicle().getMetadata("griefprevention_owner");
+			if(metadata.size() > 0) {
+				if(attacker.getUniqueId().equals(metadata.get(0).value())) {
+					return;
+				}
+			}
+
 			playerData = this.dataStore.getPlayerData(attacker.getUniqueId());
 			cachedClaim = playerData.lastClaim;
 		}
+
+		//all of this is anti theft code
+		if(!GriefPreventionLight.instance.config_claims_preventTheft) return;
 
 		Claim claim = this.dataStore.getClaimAt(event.getVehicle().getLocation(), cachedClaim);
 

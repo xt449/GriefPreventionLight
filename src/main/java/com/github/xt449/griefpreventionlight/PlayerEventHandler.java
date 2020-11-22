@@ -40,11 +40,13 @@ import org.bukkit.event.raid.RaidTriggerEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.BlockIterator;
+import org.bukkit.util.RayTraceResult;
 
 import java.net.InetAddress;
 import java.util.*;
@@ -1303,8 +1305,18 @@ class PlayerEventHandler implements Listener {
 			ItemStack itemInHand = instance.getItemInHand(player, hand);
 			Material materialInHand = itemInHand.getType();
 
-			// Allow placing boats in any claim
-			if(Tag.ITEMS_BOATS.isTagged(materialInHand)) {
+			// Allow placing boats and minecarts in any claim
+			// TODO
+			if(Tag.ITEMS_BOATS.isTagged(materialInHand) || Material.MINECART == materialInHand) {
+				Bukkit.getScheduler().runTaskLater(GriefPreventionLight.instance, () -> {
+					final RayTraceResult rayTrace = player.getWorld().rayTraceEntities(player.getEyeLocation(), player.getEyeLocation().getDirection(), 6, 1.1F, (entity -> entity instanceof Vehicle));
+					if(rayTrace != null) {
+						final Entity vehicle = rayTrace.getHitEntity();
+						if(vehicle != null) {
+							vehicle.setMetadata("griefprevention_owner", new FixedMetadataValue(GriefPreventionLight.instance, player.getUniqueId()));
+						}
+					}
+				}, 1);
 				return;
 			}
 
