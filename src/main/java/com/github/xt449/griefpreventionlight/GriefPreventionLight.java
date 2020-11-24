@@ -280,7 +280,7 @@ public class GriefPreventionLight extends JavaPlugin {
 		pluginManager.registerEvents(blockEventHandler, this);
 
 		//entity events
-		EntityEventHandler entityEventHandler = new EntityEventHandler(this.dataStore, this);
+		EntityEventHandler entityEventHandler = new EntityEventHandler();
 		pluginManager.registerEvents(entityEventHandler, this);
 
 		//cache offline players
