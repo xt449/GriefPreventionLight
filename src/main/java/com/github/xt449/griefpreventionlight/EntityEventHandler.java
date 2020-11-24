@@ -443,20 +443,14 @@ public class EntityEventHandler implements Listener {
 		if(entity instanceof Monster) return true;
 
 		EntityType type = entity.getType();
-		if(type == EntityType.GHAST || type == EntityType.MAGMA_CUBE || type == EntityType.SHULKER)
+		if(type == EntityType.GHAST || type == EntityType.MAGMA_CUBE || type == EntityType.SHULKER || type == EntityType.HOGLIN)
 			return true;
 
 		if(type == EntityType.SLIME)
 			return ((Slime) entity).getSize() > 0;
 
-		if(type == EntityType.RABBIT)
-			return ((Rabbit) entity).getRabbitType() == Rabbit.Type.THE_KILLER_BUNNY;
-
-		if(type == EntityType.PANDA)
-			return ((Panda) entity).getMainGene() == Panda.Gene.AGGRESSIVE;
-
-		if(type == EntityType.HOGLIN || type == EntityType.POLAR_BEAR)
-			return !entity.getPersistentDataContainer().has(luredByPlayer, PersistentDataType.BYTE) && ((Mob) entity).getTarget() != null;
+		if(entity instanceof Mob)
+			return ((Mob) entity).getTarget() != null;
 
 		return false;
 	}
