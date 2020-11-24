@@ -50,16 +50,6 @@ import java.util.*;
 
 //handles events related to entities
 public class EntityEventHandler implements Listener {
-	//convenience reference for the singleton datastore
-	private final DataStore dataStore;
-	private final GriefPreventionLight instance;
-	private final NamespacedKey luredByPlayer;
-
-	public EntityEventHandler(DataStore dataStore, GriefPreventionLight plugin) {
-		this.dataStore = dataStore;
-		instance = plugin;
-		luredByPlayer = new NamespacedKey(plugin, "lured_by_player");
-	}
 
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void onEntityFormBlock(EntityBlockFormEvent event) {
@@ -89,7 +79,7 @@ public class EntityEventHandler implements Listener {
 			event.setCancelled(true);
 		} else if(GriefPreventionLight.instance.config_claims_worldModes.get(event.getBlock().getWorld()) != ClaimsMode.Disabled) {
 			if(event.getEntityType() == EntityType.WITHER) {
-				Claim claim = this.dataStore.getClaimAt(event.getBlock().getLocation(), null);
+				Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(event.getBlock().getLocation(), null);
 				if(claim == null || !claim.areExplosivesAllowed || !GriefPreventionLight.instance.config_blockClaimExplosions) {
 					event.setCancelled(true);
 				}
@@ -144,7 +134,7 @@ public class EntityEventHandler implements Listener {
 				//if did not fall straight down
 				if(originalLocation.getBlockX() != newLocation.getBlockX() || originalLocation.getBlockZ() != newLocation.getBlockZ()) {
 					//in other worlds, if landing in land claim, only allow if source was also in the land claim
-					Claim claim = this.dataStore.getClaimAt(newLocation, null);
+					Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(newLocation, null);
 					if(claim != null && !claim.contains(originalLocation, false)) {
 						//when not allowed, drop as item instead of forming a block
 						event.setCancelled(true);
@@ -164,7 +154,7 @@ public class EntityEventHandler implements Listener {
 	public void onFallingBlockEnterPortal(EntityPortalEnterEvent event) {
 		if(event.getEntityType() != EntityType.FALLING_BLOCK)
 			return;
-		event.getEntity().removeMetadata("GP_FALLINGBLOCK", instance);
+		event.getEntity().removeMetadata("GP_FALLINGBLOCK", GriefPreventionLight.instance);
 	}
 
 	//Don't let people drop in TNT through end portals
@@ -232,7 +222,7 @@ public class EntityEventHandler implements Listener {
 			if(block.getType() == Material.AIR) continue;
 
 			//is it in a land claim?
-			Claim claim = this.dataStore.getClaimAt(block.getLocation(), cachedClaim);
+			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(block.getLocation(), cachedClaim);
 			if(claim != null) {
 				cachedClaim = claim;
 			}
@@ -310,7 +300,7 @@ public class EntityEventHandler implements Listener {
 //		}
 //
 //		//otherwise, just apply the limit on total entities per claim (and no spawning in the wilderness!)
-//		Claim claim = this.dataStore.getClaimAt(event.getLocation(), null);
+//		Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(event.getLocation(), null);
 //		if(claim == null || claim.allowMoreEntities(true) != null) {
 //			event.setCancelled(true);
 //			return;
@@ -331,13 +321,13 @@ public class EntityEventHandler implements Listener {
 		if(entity.getType() != EntityType.PLAYER) return;  //only tracking players
 
 		Player player = (Player) entity;
-		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
+		PlayerData playerData = GriefPreventionLight.instance.dataStore.getPlayerData(player.getUniqueId());
 
 		//FEATURE: lock dropped items to player who dropped them
 
 		//decide whether or not to apply this feature to this situation (depends on the world where it happens)
 		if(GriefPreventionLight.instance.config_lockDeathDropsInPvpWorlds) {
-			Claim claim = this.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
+			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(player.getLocation(), playerData.lastClaim);
 			ProtectDeathDropsEvent protectionEvent = new ProtectDeathDropsEvent(claim);
 			Bukkit.getPluginManager().callEvent(protectionEvent);
 			if(!protectionEvent.isCancelled()) {
@@ -373,7 +363,7 @@ public class EntityEventHandler implements Listener {
 		//if its an enderman
 		if(event.getEntity().getType() == EntityType.ENDERMAN) {
 			//and the block is claimed
-			if(this.dataStore.getClaimAt(event.getBlock().getLocation(), null) != null) {
+			if(GriefPreventionLight.instance.dataStore.getClaimAt(event.getBlock().getLocation(), null) != null) {
 				//he doesn't get to steal it
 				event.setCancelled(true);
 			}
@@ -453,22 +443,6 @@ public class EntityEventHandler implements Listener {
 			return ((Mob) entity).getTarget() != null;
 
 		return false;
-	}
-
-	// Tag passive animals that can become aggressive so we can tell whether or not they are hostile later
-	@EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-	public void onEntityTarget(EntityTargetEvent event) {
-		if(!GriefPreventionLight.instance.claimsEnabledForWorld(event.getEntity().getWorld())) return;
-
-		EntityType entityType = event.getEntityType();
-		if(entityType != EntityType.HOGLIN && entityType != EntityType.POLAR_BEAR)
-			return;
-
-		if(event.getReason() == EntityTargetEvent.TargetReason.TEMPT)
-			event.getEntity().getPersistentDataContainer().set(luredByPlayer, PersistentDataType.BYTE, (byte) 1);
-		else
-			event.getEntity().getPersistentDataContainer().remove(luredByPlayer);
-
 	}
 
 	//when an entity is damaged
@@ -553,10 +527,10 @@ public class EntityEventHandler implements Listener {
 			//decide whether it's claimed
 			Claim cachedClaim = null;
 			if(attacker != null) {
-				cachedClaim = this.dataStore.getPlayerData(attacker.getUniqueId()).lastClaim;
+				cachedClaim = GriefPreventionLight.instance.dataStore.getPlayerData(attacker.getUniqueId()).lastClaim;
 			}
 
-			Claim claim = this.dataStore.getClaimAt(event.getEntity().getLocation(), cachedClaim);
+			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(event.getEntity().getLocation(), cachedClaim);
 
 			//if it's claimed
 			if(claim != null) {
@@ -596,7 +570,7 @@ public class EntityEventHandler implements Listener {
 						if(attacker.getUniqueId().equals(ownerID)) return;
 
 						//allow for admin override
-						PlayerData attackerData = this.dataStore.getPlayerData(attacker.getUniqueId());
+						PlayerData attackerData = GriefPreventionLight.instance.dataStore.getPlayerData(attacker.getUniqueId());
 						if(attackerData.ignoreClaims) return;
 
 						//otherwise disallow in non-pvp worlds (and also pvp worlds if configured to do so)
@@ -629,11 +603,11 @@ public class EntityEventHandler implements Listener {
 			}
 
 			if(attacker != null) {
-				playerData = this.dataStore.getPlayerData(attacker.getUniqueId());
+				playerData = GriefPreventionLight.instance.dataStore.getPlayerData(attacker.getUniqueId());
 				cachedClaim = playerData.lastClaim;
 			}
 
-			Claim claim = this.dataStore.getClaimAt(event.getEntity().getLocation(), cachedClaim);
+			Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(event.getEntity().getLocation(), cachedClaim);
 
 			//if it's claimed
 			if(claim != null) {
@@ -717,8 +691,8 @@ public class EntityEventHandler implements Listener {
 		//if attacker not a player, do nothing
 		if(attacker == null) return;
 
-		PlayerData defenderData = this.dataStore.getPlayerData(defender.getUniqueId());
-		PlayerData attackerData = this.dataStore.getPlayerData(attacker.getUniqueId());
+		PlayerData defenderData = GriefPreventionLight.instance.dataStore.getPlayerData(defender.getUniqueId());
+		PlayerData attackerData = GriefPreventionLight.instance.dataStore.getPlayerData(attacker.getUniqueId());
 
 		if(attacker != defender) {
 			long now = Calendar.getInstance().getTimeInMillis();
@@ -774,14 +748,14 @@ public class EntityEventHandler implements Listener {
 				}
 			}
 
-			playerData = this.dataStore.getPlayerData(attacker.getUniqueId());
+			playerData = GriefPreventionLight.instance.dataStore.getPlayerData(attacker.getUniqueId());
 			cachedClaim = playerData.lastClaim;
 		}
 
 		//all of this is anti theft code
 		if(!GriefPreventionLight.instance.config_claims_preventTheft) return;
 
-		Claim claim = this.dataStore.getClaimAt(event.getVehicle().getLocation(), cachedClaim);
+		Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(event.getVehicle().getLocation(), cachedClaim);
 
 		//if it's claimed
 		if(claim != null) {
@@ -829,7 +803,7 @@ public class EntityEventHandler implements Listener {
 				Claim cachedClaim = null;
 				for(LivingEntity effected : event.getAffectedEntities()) {
 					if(effected.getType() == EntityType.VILLAGER || effected instanceof Animals) {
-						Claim claim = this.dataStore.getClaimAt(effected.getLocation(), cachedClaim);
+						Claim claim = GriefPreventionLight.instance.dataStore.getClaimAt(effected.getLocation(), cachedClaim);
 						if(claim != null) {
 							cachedClaim = claim;
 							if(thrower == null || claim.allowContainers(thrower) != null) {
